@@ -1,0 +1,232 @@
+<title>Bench Tap Battle</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@600;700;800&display=swap">
+
+<style>
+  /* =========================================================================
+     BENCH TAP BATTLE — Phase 2, piece 2
+     While the two champions duel, everyone else mashes for their team.
+     Every tap = 1 point; at the end the tap totals cancel out (net difference
+     goes to the team that tapped more). The duel winner earns their team +500.
+     Standalone prototype: you tap for Team Blue, a bot bench mashes for Red.
+     ========================================================================= */
+  :root{
+    --ink:#0a1130; --ink-2:#121b44; --line:#26325f;
+    --a:#2f6bff; --a2:#6aa9ff; --b:#ff4d6d; --b2:#ff86a0;
+    --gold:#ffc24d; --gold-ink:#ffce6b; --text:#eaf1ff; --muted:#93a4d4;
+  }
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; }
+  body{ background:radial-gradient(1000px 560px at 80% -10%, rgba(47,107,255,.16), transparent 60%),
+                    radial-gradient(900px 520px at -8% 10%, rgba(255,77,109,.14), transparent 58%), var(--ink);
+    color:var(--text); font-family:"Nunito",system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+    min-height:100svh; overflow-x:hidden; -webkit-text-size-adjust:100%; -webkit-user-select:none; user-select:none; }
+  .wrap{ width:min(480px,100% - 24px); margin-inline:auto; padding:16px 0 34px; display:flex; flex-direction:column; gap:14px; }
+
+  /* duel banner */
+  .duel{ display:flex; align-items:center; gap:12px; background:var(--ink-2); border:1px solid var(--line); border-radius:16px; padding:12px 14px; }
+  .duel .timer{ position:relative; width:56px; height:56px; flex:none; }
+  .duel .timer svg{ width:100%; height:100%; transform:rotate(-90deg); }
+  .duel .timer .track{ fill:none; stroke:var(--line); stroke-width:7; }
+  .duel .timer .prog{ fill:none; stroke:var(--gold); stroke-width:7; stroke-linecap:round; transition:stroke-dashoffset .1s linear; }
+  .duel .timer .num{ position:absolute; inset:0; display:grid; place-items:center; font-family:"Fredoka",sans-serif; font-weight:700; font-size:20px; }
+  .duel .txt .k{ font-family:"Fredoka",sans-serif; font-weight:600; font-size:12px; letter-spacing:1.5px; text-transform:uppercase; color:var(--gold-ink); }
+  .duel .txt .m{ font-weight:800; font-size:15px; margin-top:1px; }
+  .duel .txt .m b.a{ color:var(--a2); } .duel .txt .m b.b{ color:var(--b2); }
+
+  /* score readout */
+  .scores{ display:flex; align-items:stretch; gap:10px; }
+  .team{ flex:1; background:var(--ink-2); border:1px solid var(--line); border-radius:16px; padding:12px 10px; text-align:center; position:relative; overflow:hidden; }
+  .team .lbl{ font-family:"Fredoka",sans-serif; font-weight:600; font-size:12px; letter-spacing:1px; text-transform:uppercase; }
+  .team.a .lbl{ color:var(--a2); } .team.b .lbl{ color:var(--b2); }
+  .team .taps{ font-family:"Fredoka",sans-serif; font-weight:700; font-size:40px; line-height:1; font-variant-numeric:tabular-nums; margin-top:2px; }
+  .team .cap{ font-size:11px; color:var(--muted); }
+  .team.bump{ animation:bump .18s ease; }
+  @keyframes bump{ 50%{ transform:scale(1.04); } }
+
+  /* tug-of-war bar */
+  .tug{ height:16px; border-radius:999px; background:var(--b); overflow:hidden; border:1px solid var(--line); position:relative; }
+  .tug .fill{ position:absolute; inset:0; width:50%; background:linear-gradient(90deg,var(--a),var(--a2)); transition:width .12s ease; }
+  .tug .mark{ position:absolute; top:-3px; bottom:-3px; left:50%; width:2px; background:rgba(255,255,255,.5); }
+
+  /* the tap pad */
+  .pad{ position:relative; margin-top:2px; border:none; border-radius:24px; cursor:pointer; color:#fff;
+    background:linear-gradient(160deg,var(--a2),var(--a)); box-shadow:0 20px 44px -16px rgba(47,107,255,.8), inset 0 4px 0 rgba(255,255,255,.28);
+    padding:40px 18px; font-family:"Fredoka",sans-serif; font-weight:700; font-size:30px; letter-spacing:1px;
+    display:flex; flex-direction:column; align-items:center; gap:4px; touch-action:manipulation; overflow:hidden; transition:transform .05s; }
+  .pad:active{ transform:scale(.98); }
+  .pad .sub{ font-family:"Nunito"; font-weight:800; font-size:12.5px; letter-spacing:.5px; opacity:.85; }
+  .pad:disabled{ filter:grayscale(.4) brightness(.8); cursor:default; }
+  .float{ position:absolute; font-family:"Fredoka",sans-serif; font-weight:700; font-size:22px; pointer-events:none; color:#fff; animation:floatUp .6s ease-out forwards; }
+  @keyframes floatUp{ from{ opacity:1; transform:translateY(0) scale(1);} to{ opacity:0; transform:translateY(-46px) scale(1.3);} }
+
+  .hint{ text-align:center; color:var(--muted); font-size:12px; }
+
+  /* results overlay */
+  #results{ position:fixed; inset:0; z-index:20; display:none; background:rgba(6,10,32,.72); backdrop-filter:blur(4px); align-items:center; justify-content:center; padding:20px; }
+  #results.show{ display:flex; }
+  .card{ width:min(400px,100%); background:var(--ink-2); border:1px solid var(--line); border-radius:22px; padding:22px; box-shadow:0 30px 60px -20px rgba(0,0,0,.7); animation:pop .3s cubic-bezier(.2,1.3,.4,1) both; }
+  @keyframes pop{ from{opacity:0; transform:scale(.9)} to{opacity:1; transform:none} }
+  .card h2{ font-family:"Fredoka",sans-serif; font-weight:700; font-size:22px; margin:0 0 14px; text-align:center; }
+  .line{ display:flex; align-items:center; justify-content:space-between; gap:10px; padding:11px 12px; border-radius:12px; background:var(--ink); border:1px solid var(--line); margin-bottom:8px; }
+  .line .l{ font-size:13px; color:var(--muted); } .line .l b{ color:var(--text); }
+  .line .pts{ font-family:"Fredoka",sans-serif; font-weight:700; font-size:17px; }
+  .pts.a{ color:var(--a2); } .pts.b{ color:var(--b2); }
+  .board{ margin-top:12px; border-top:1px solid var(--line); padding-top:12px; }
+  .board .row{ display:flex; align-items:center; justify-content:space-between; padding:9px 12px; border-radius:12px; margin-bottom:6px; }
+  .board .row.a{ background:linear-gradient(90deg,rgba(47,107,255,.22),transparent); }
+  .board .row.b{ background:linear-gradient(90deg,rgba(255,77,109,.22),transparent); }
+  .board .row .nm{ font-family:"Fredoka",sans-serif; font-weight:600; font-size:15px; }
+  .board .row .tot{ font-family:"Fredoka",sans-serif; font-weight:700; font-size:20px; font-variant-numeric:tabular-nums; }
+  .again{ -webkit-appearance:none; appearance:none; cursor:pointer; width:100%; margin-top:14px;
+    font-family:"Fredoka",sans-serif; font-weight:600; font-size:16px; color:#0a1130;
+    background:linear-gradient(150deg,var(--gold),#ffd77e); border:none; border-radius:14px; padding:14px; }
+
+  @media (prefers-reduced-motion:reduce){ *{ animation-duration:.001s !important; } }
+</style>
+
+<div class="wrap">
+
+  <div class="duel">
+    <div class="timer">
+      <svg viewBox="0 0 100 100"><circle class="track" cx="50" cy="50" r="42"/><circle class="prog" id="ring" cx="50" cy="50" r="42"/></svg>
+      <div class="num" id="tnum">15</div>
+    </div>
+    <div class="txt">
+      <div class="k">Duel in progress</div>
+      <div class="m"><b class="a" id="champA">Alex</b> vs <b class="b" id="champB">Riley</b></div>
+    </div>
+  </div>
+
+  <div class="scores">
+    <div class="team a" id="teamA">
+      <div class="lbl">Team Blue</div>
+      <div class="taps" id="tapsA">0</div>
+      <div class="cap">taps</div>
+    </div>
+    <div class="team b" id="teamB">
+      <div class="lbl">Team Red</div>
+      <div class="taps" id="tapsB">0</div>
+      <div class="cap">taps</div>
+    </div>
+  </div>
+
+  <div class="tug"><div class="fill" id="fill"></div><div class="mark"></div></div>
+
+  <button class="pad" id="pad">
+    TAP! TAP! TAP!
+    <span class="sub">Mash for Team Blue</span>
+  </button>
+
+  <p class="hint">Rack up taps before the duel ends — the team with more taps banks the difference.</p>
+</div>
+
+<!-- results -->
+<div id="results">
+  <div class="card">
+    <h2 id="rTitle">Round scored</h2>
+    <div class="line"><div class="l">Tap battle — <b id="tapWinner">Team Blue</b> tapped more (<span id="tapDetail">0 vs 0</span>)</div><div class="pts" id="tapPts">+0</div></div>
+    <div class="line"><div class="l">Duel win — <b id="duelWinner">Team Blue</b> takes the round</div><div class="pts" id="duelPts">+500</div></div>
+    <div class="board" id="board"></div>
+    <button class="again" id="againBtn">Next duel</button>
+  </div>
+</div>
+
+<script>
+const ROUND_MS = 15000;
+const C = 2 * Math.PI * 42;
+document.getElementById('ring').style.strokeDasharray = C;
+
+const NAMES_A = ['Alex','Sam','Priya','Marcus','Nina','Diego'];
+const NAMES_B = ['Riley','Jordan','Mei','Tariq','Cleo','Otis'];
+const totals = { a:0, b:0 };   // running team scores across rounds
+
+let tapsA = 0, tapsB = 0, startTs = 0, raf = 0, botTimer = 0, running = false;
+
+const $ = id => document.getElementById(id);
+function pick(a){ return a[Math.floor(Math.random()*a.length)]; }
+
+function render(){
+  $('tapsA').textContent = tapsA;
+  $('tapsB').textContent = tapsB;
+  const total = tapsA + tapsB;
+  $('fill').style.width = (total ? (tapsA/total*100) : 50) + '%';
+}
+
+function startRound(){
+  tapsA = 0; tapsB = 0; running = true; render();
+  $('champA').textContent = pick(NAMES_A);
+  $('champB').textContent = pick(NAMES_B);
+  $('pad').disabled = false;
+  $('results').classList.remove('show');
+  startTs = performance.now();
+  cancelAnimationFrame(raf); tick();
+  scheduleBot();
+}
+
+function tick(){
+  const remain = Math.max(0, ROUND_MS - (performance.now() - startTs));
+  $('tnum').textContent = Math.ceil(remain/1000);
+  $('ring').style.strokeDashoffset = C * (1 - remain/ROUND_MS);
+  if(remain <= 0){ endRound(); return; }
+  raf = requestAnimationFrame(tick);
+}
+
+// rival bench auto-mashes at a lively, slightly random pace
+function scheduleBot(){
+  if(!running) return;
+  tapsB++; bump('teamB'); render();
+  botTimer = setTimeout(scheduleBot, 90 + Math.random()*230);
+}
+
+function bump(id){ const el=$(id); el.classList.remove('bump'); void el.offsetWidth; el.classList.add('bump'); }
+
+$('pad').addEventListener('pointerdown', e => {
+  if(!running) return;
+  tapsA++; bump('teamA'); render();
+  if(navigator.vibrate) navigator.vibrate(8);
+  // floating +1
+  const f = document.createElement('span'); f.className='float'; f.textContent='+1';
+  const r = $('pad').getBoundingClientRect();
+  f.style.left = (e.clientX - r.left - 10) + 'px'; f.style.top = (e.clientY - r.top - 14) + 'px';
+  $('pad').appendChild(f); setTimeout(() => f.remove(), 600);
+});
+
+function endRound(){
+  running = false; clearTimeout(botTimer); cancelAnimationFrame(raf);
+  $('pad').disabled = true;
+
+  // scoring: net tap difference to whoever tapped more; +500 to the duel winner
+  const tapDiff = Math.abs(tapsA - tapsB);
+  const tapWin = tapsA === tapsB ? null : (tapsA > tapsB ? 'a' : 'b');
+  const duelWin = Math.random() < 0.5 ? 'a' : 'b';   // simulated RPS result
+
+  if(tapWin) totals[tapWin] += tapDiff;
+  totals[duelWin] += 500;
+
+  // fill results card
+  $('tapWinner').textContent = tapWin ? teamName(tapWin) : 'Nobody';
+  $('tapDetail').textContent = tapsA + ' vs ' + tapsB + ' taps';
+  $('tapPts').textContent = '+' + tapDiff;
+  $('tapPts').className = 'pts ' + (tapWin || 'a');
+  $('duelWinner').textContent = teamName(duelWin);
+  $('duelPts').className = 'pts ' + duelWin;
+  $('rTitle').textContent = teamName(duelWin) + ' wins the duel!';
+
+  renderBoard();
+  $('results').classList.add('show');
+}
+
+function teamName(k){ return k==='a' ? 'Team Blue' : 'Team Red'; }
+function renderBoard(){
+  const rows = [['a',totals.a],['b',totals.b]].sort((x,y)=>y[1]-x[1]);
+  $('board').innerHTML = rows.map(([k,v]) =>
+    '<div class="row '+k+'"><span class="nm">'+teamName(k)+'</span><span class="tot">'+v+'</span></div>'
+  ).join('');
+}
+
+$('againBtn').addEventListener('click', startRound);
+startRound();
+</script>
