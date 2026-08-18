@@ -48,13 +48,21 @@ All actions go through one `Net` object. The real Socket.IO server will expose
 the **same methods**, so plugging it in is a one-object swap:
 
 ```
-Net.createRoom({name})      -> { code, id }   // you become the host player
-Net.joinRoom(code, {name})  -> { ok, id, error }
-Net.leaveRoom(playerId)     -> host auto-passes to next player; empty room ends
-Net.startGame(playerId)     -> host only; starts the game
-Net.linkFor(code)           -> shareable invite link
-Net.subscribe(fn)           -> fn(room) whenever the room changes
+Net.createRoom({name})         -> { ok, code, id }   // you become the host player
+Net.joinRoom(code, {name})     -> { ok, id, error }
+Net.appointHost(hostId, newId) -> host hands the crown to another player
+Net.leaveRoom(playerId)        -> if the host leaves without appointing, the crown
+                                  passes to the next player in join order after the
+                                  host (wrapping around); an empty room ends
+Net.startGame(playerId)        -> host only; starts the game
+Net.linkFor(code)              -> shareable invite link
+Net.subscribe(fn)              -> fn(room) whenever the room changes
 ```
+
+Avatars are the player's **initials** on a colored disc; UI icons are inlined
+[Lucide](https://lucide.dev) SVGs (MIT). The theme is **light by default** and
+adapts to the viewer's dark mode. When we split this into real files, the icon
+set and `Net` move into their own modules.
 
 Room shape (also the future server's shape):
 
