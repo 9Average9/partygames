@@ -92,7 +92,7 @@
   <div class="duel">
     <div class="timer">
       <svg viewBox="0 0 100 100"><circle class="track" cx="50" cy="50" r="42"/><circle class="prog" id="ring" cx="50" cy="50" r="42"/></svg>
-      <div class="num" id="tnum">15</div>
+      <div class="num" id="tnum">30</div>
     </div>
     <div class="txt">
       <div class="k">Duel in progress</div>
@@ -127,6 +127,7 @@
 <div id="results">
   <div class="card">
     <h2 id="rTitle">Round scored</h2>
+    <p id="rNote" style="text-align:center; color:var(--muted); font-size:12.5px; margin:-8px 0 14px;"></p>
     <div class="line"><div class="l">Tap battle — <b id="tapWinner">Team Blue</b> tapped more (<span id="tapDetail">0 vs 0</span>)</div><div class="pts" id="tapPts">+0</div></div>
     <div class="line"><div class="l">Duel win — <b id="duelWinner">Team Blue</b> takes the round</div><div class="pts" id="duelPts">+500</div></div>
     <div class="board" id="board"></div>
@@ -135,7 +136,7 @@
 </div>
 
 <script>
-const ROUND_MS = 15000;
+const ROUND_MS = 30000;   // the duel length — tap battle lasts exactly this long
 const C = 2 * Math.PI * 42;
 document.getElementById('ring').style.strokeDasharray = C;
 
@@ -144,6 +145,7 @@ const NAMES_B = ['Riley','Jordan','Mei','Tariq','Cleo','Otis'];
 const totals = { a:0, b:0 };   // running team scores across rounds
 
 let tapsA = 0, tapsB = 0, startTs = 0, raf = 0, botTimer = 0, running = false;
+let lockAt = 0, endedEarly = false;   // when both champions "lock in" (ends the tap battle)
 
 const $ = id => document.getElementById(id);
 function pick(a){ return a[Math.floor(Math.random()*a.length)]; }
@@ -156,20 +158,26 @@ function render(){
 }
 
 function startRound(){
-  tapsA = 0; tapsB = 0; running = true; render();
+  tapsA = 0; tapsB = 0; running = true; endedEarly = false; render();
   $('champA').textContent = pick(NAMES_A);
   $('champB').textContent = pick(NAMES_B);
   $('pad').disabled = false;
   $('results').classList.remove('show');
+  // the two champions lock in at some point in the round; when they do (or at
+  // 30s, whichever comes first) the tap battle ends. Sometimes they use the
+  // full clock (null = no early lock).
+  lockAt = Math.random() < 0.65 ? (7000 + Math.random()*20000) : Infinity;
   startTs = performance.now();
   cancelAnimationFrame(raf); tick();
   scheduleBot();
 }
 
 function tick(){
-  const remain = Math.max(0, ROUND_MS - (performance.now() - startTs));
+  const elapsed = performance.now() - startTs;
+  const remain = Math.max(0, ROUND_MS - elapsed);
   $('tnum').textContent = Math.ceil(remain/1000);
   $('ring').style.strokeDashoffset = C * (1 - remain/ROUND_MS);
+  if(elapsed >= lockAt){ endedEarly = true; endRound(); return; }  // both locked in
   if(remain <= 0){ endRound(); return; }
   raf = requestAnimationFrame(tick);
 }
@@ -214,6 +222,9 @@ function endRound(){
   $('duelWinner').textContent = teamName(duelWin);
   $('duelPts').className = 'pts ' + duelWin;
   $('rTitle').textContent = teamName(duelWin) + ' wins the duel!';
+  $('rNote').textContent = endedEarly
+    ? 'Both champions locked in — the round ended early.'
+    : 'The clock ran out.';
 
   renderBoard();
   $('results').classList.add('show');
