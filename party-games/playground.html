@@ -1,0 +1,418 @@
+<title>Shindig Lobby</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Nunito:ital,wght@0,400;0,600;0,700;0,800;1,700&display=swap">
+
+<style>
+  /* =========================================================================
+     SHINDIG — party game lobby (Step 1)
+     Single committed "party screen" look. Colors are painted explicitly so the
+     page holds on any host background; no light/dark toggle by design.
+     ========================================================================= */
+  :root{
+    --ink:      #1a1030;   /* deep plum night (page ground)   */
+    --ink-2:    #251640;   /* raised panel                    */
+    --ink-3:    #2f1c52;   /* card / input surface            */
+    --line:     #3d2a63;   /* hairline borders                */
+    --pink:     #ff5d8f;   /* primary party accent            */
+    --gold:     #ffcf5c;   /* secondary accent                */
+    --cyan:     #4dd6c8;   /* tertiary accent                 */
+    --text:     #f6efff;   /* warm white                      */
+    --muted:    #a794c8;   /* muted lilac text                */
+    --shadow:   0 18px 40px -18px rgba(0,0,0,.7);
+    --r:        18px;      /* card radius                     */
+  }
+
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; }
+  body{
+    background:
+      radial-gradient(1200px 600px at 80% -10%, rgba(255,93,143,.18), transparent 60%),
+      radial-gradient(1000px 500px at -10% 20%, rgba(77,214,200,.14), transparent 55%),
+      var(--ink);
+    color:var(--text);
+    font-family:"Nunito", system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+    line-height:1.5;
+    min-height:100vh;
+    -webkit-text-size-adjust:100%;
+  }
+
+  .wrap{
+    width:min(560px, 100% - 28px);
+    margin-inline:auto;
+    padding:22px 0 60px;
+    display:flex;
+    flex-direction:column;
+    gap:22px;
+  }
+
+  /* ---- masthead ---------------------------------------------------------- */
+  .brand{ display:flex; align-items:center; gap:12px; padding-top:6px; }
+  .brand-mark{
+    width:44px; height:44px; border-radius:13px; flex:none;
+    display:grid; place-items:center; font-size:26px;
+    background:linear-gradient(150deg, var(--pink), var(--gold));
+    box-shadow:var(--shadow);
+    transform:rotate(-6deg);
+  }
+  .brand h1{
+    font-family:"Fredoka", sans-serif; font-weight:700;
+    font-size:28px; letter-spacing:.5px; margin:0; line-height:1;
+  }
+  .brand small{ display:block; color:var(--muted); font-weight:700; font-size:12px; letter-spacing:.4px; }
+
+  /* ---- shared panel scaffolding ----------------------------------------- */
+  .panel{
+    background:var(--ink-2);
+    border:1px solid var(--line);
+    border-radius:var(--r);
+    box-shadow:var(--shadow);
+    overflow:hidden;
+  }
+  .panel-label{
+    display:flex; align-items:center; gap:8px;
+    font-family:"Fredoka", sans-serif; font-weight:600;
+    text-transform:uppercase; letter-spacing:1.4px; font-size:12px;
+    color:var(--muted);
+    padding:13px 16px;
+    border-bottom:1px solid var(--line);
+    background:rgba(0,0,0,.12);
+  }
+  .panel-label .dot{ width:8px; height:8px; border-radius:50%; background:var(--cyan); box-shadow:0 0 0 4px rgba(77,214,200,.15); }
+
+  /* ============================ TV SCREEN ================================= */
+  .tv-body{ padding:22px 18px 20px; text-align:center; position:relative; }
+
+  .tv-title{ font-family:"Fredoka",sans-serif; font-weight:600; font-size:15px; color:var(--gold); letter-spacing:.5px; margin:0 0 2px; }
+  .tv-sub{ color:var(--muted); font-size:13px; margin:0 0 16px; }
+
+  .join-line{ color:var(--muted); font-size:13.5px; margin:0 0 6px; }
+  .join-line b{ color:var(--text); }
+
+  .code{
+    font-family:"Fredoka",sans-serif; font-weight:700;
+    font-size:clamp(52px, 17vw, 78px); line-height:1; letter-spacing:.14em;
+    margin:2px 0 4px; padding-left:.14em;
+    background:linear-gradient(160deg, var(--pink) 20%, var(--gold));
+    -webkit-background-clip:text; background-clip:text; color:transparent;
+    filter:drop-shadow(0 6px 16px rgba(255,93,143,.25));
+  }
+
+  .count{
+    display:inline-flex; align-items:center; gap:7px;
+    font-weight:800; font-size:13px; color:var(--text);
+    background:var(--ink-3); border:1px solid var(--line);
+    padding:5px 13px; border-radius:999px; margin-top:6px;
+  }
+  .count .dot{ width:7px;height:7px;border-radius:50%;background:var(--cyan); }
+
+  /* player grid */
+  .players{
+    list-style:none; margin:18px 0 0; padding:0;
+    display:grid; grid-template-columns:repeat(auto-fill, minmax(84px,1fr)); gap:10px;
+  }
+  .player{
+    background:var(--ink-3); border:1px solid var(--line);
+    border-radius:14px; padding:12px 6px 10px;
+    display:flex; flex-direction:column; align-items:center; gap:7px;
+    animation:pop .32s cubic-bezier(.2,1.3,.4,1) both;
+  }
+  .avatar{
+    width:44px; height:44px; border-radius:50%; flex:none;
+    display:grid; place-items:center; font-size:24px;
+    box-shadow:0 4px 12px -4px rgba(0,0,0,.6);
+  }
+  .player .name{
+    font-weight:800; font-size:12.5px; max-width:100%;
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+  }
+  @keyframes pop{ from{ opacity:0; transform:scale(.6) translateY(6px);} to{opacity:1; transform:none;} }
+
+  .empty{
+    margin:20px 0 4px; padding:22px 12px;
+    border:1.5px dashed var(--line); border-radius:14px;
+    color:var(--muted); font-size:13.5px;
+  }
+  .empty .big{ font-size:30px; display:block; margin-bottom:6px; }
+
+  .start-row{ margin-top:18px; }
+
+  /* ============================ PHONE ==================================== */
+  .phone-body{ padding:18px 16px 20px; }
+  .field{ margin-bottom:13px; }
+  .field label{
+    display:block; font-weight:800; font-size:11px; letter-spacing:1px;
+    text-transform:uppercase; color:var(--muted); margin:0 0 6px 2px;
+  }
+  input[type=text]{
+    width:100%; font-family:inherit; font-weight:700; font-size:16px;
+    color:var(--text); background:var(--ink-3);
+    border:1.5px solid var(--line); border-radius:12px;
+    padding:13px 14px; outline:none; transition:border-color .15s, box-shadow .15s;
+  }
+  input[type=text]::placeholder{ color:#7a68a0; font-weight:600; }
+  input[type=text]:focus{ border-color:var(--pink); box-shadow:0 0 0 3px rgba(255,93,143,.22); }
+  #joinCode{ text-transform:uppercase; letter-spacing:.28em; font-family:"Fredoka",sans-serif; font-size:22px; text-align:center; }
+
+  .btn{
+    -webkit-appearance:none; appearance:none; cursor:pointer;
+    font-family:"Fredoka",sans-serif; font-weight:600; font-size:16px;
+    color:var(--ink); background:linear-gradient(150deg, var(--pink), #ff7fa4);
+    border:none; border-radius:13px; padding:14px 18px; width:100%;
+    box-shadow:0 10px 22px -10px rgba(255,93,143,.8);
+    transition:transform .08s ease, filter .15s ease;
+  }
+  .btn:hover{ filter:brightness(1.05); }
+  .btn:active{ transform:translateY(1px) scale(.995); }
+  .btn:disabled{ opacity:.45; cursor:not-allowed; box-shadow:none; filter:grayscale(.3); }
+  .btn.gold{ background:linear-gradient(150deg, var(--gold), #ffe08a); box-shadow:0 10px 22px -10px rgba(255,207,92,.8); }
+  .btn.ghost{
+    background:transparent; color:var(--muted); box-shadow:none;
+    border:1.5px solid var(--line); font-weight:500;
+  }
+  .btn.ghost:hover{ color:var(--text); border-color:var(--muted); filter:none; }
+
+  .btn-row{ display:flex; gap:10px; }
+  .btn-row .btn{ width:auto; flex:1; }
+
+  /* joined state on phone */
+  .joined{ text-align:center; padding:8px 4px 4px; animation:pop .3s cubic-bezier(.2,1.3,.4,1) both; }
+  .joined .avatar{ width:76px; height:76px; font-size:42px; margin:6px auto 12px; }
+  .joined .hi{ font-family:"Fredoka",sans-serif; font-weight:600; font-size:22px; }
+  .joined .status{ color:var(--muted); font-size:13.5px; margin:4px 0 18px; }
+  .pulse{ display:inline-block; width:8px;height:8px;border-radius:50%; background:var(--cyan); margin-right:6px; animation:blink 1.2s infinite; vertical-align:middle; }
+  @keyframes blink{ 0%,100%{opacity:1} 50%{opacity:.25} }
+
+  .hint{
+    display:flex; gap:9px; align-items:flex-start;
+    color:var(--muted); font-size:12.5px; line-height:1.45;
+    background:rgba(77,214,200,.07); border:1px solid var(--line);
+    border-radius:12px; padding:11px 13px;
+  }
+  .hint b{ color:var(--cyan); }
+
+  .foot{ text-align:center; color:var(--muted); font-size:11.5px; opacity:.8; }
+
+  @media (prefers-reduced-motion:reduce){
+    *{ animation:none !important; }
+  }
+</style>
+
+<div class="wrap">
+
+  <div class="brand">
+    <div class="brand-mark">🎉</div>
+    <div>
+      <h1>SHINDIG</h1>
+      <small>party games · lobby preview</small>
+    </div>
+  </div>
+
+  <!-- ======================= THE TV SCREEN ============================= -->
+  <section class="panel">
+    <div class="panel-label"><span class="dot"></span> On the TV</div>
+    <div class="tv-body">
+      <p class="tv-title">🎈 A SHINDIG is starting!</p>
+      <p class="tv-sub">Grab your phone to join the room.</p>
+
+      <p class="join-line">Go to <b>your-game-link</b> and enter code</p>
+      <div class="code" id="tvCode">----</div>
+
+      <div class="count"><span class="dot"></span> <span id="tvCount">0 players</span></div>
+
+      <ul class="players" id="tvPlayers"></ul>
+      <div class="empty" id="tvEmpty">
+        <span class="big">👀</span>
+        Waiting for the first player to join…
+      </div>
+
+      <div class="start-row">
+        <button class="btn gold" id="startBtn" disabled>Start Game</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ======================= THE PHONE ================================ -->
+  <section class="panel">
+    <div class="panel-label"><span class="dot"></span> On your phone</div>
+    <div class="phone-body">
+
+      <!-- JOIN FORM -->
+      <div id="joinView">
+        <div class="field">
+          <label for="joinCode">Room code</label>
+          <input id="joinCode" type="text" inputmode="latin" autocomplete="off"
+                 maxlength="4" placeholder="ABCD">
+        </div>
+        <div class="field">
+          <label for="joinName">Your name</label>
+          <input id="joinName" type="text" autocomplete="off"
+                 maxlength="12" placeholder="Type a nickname">
+        </div>
+        <button class="btn" id="joinBtn">Join the party</button>
+        <p class="foot" id="joinError" style="color:var(--pink); min-height:16px; margin:8px 0 0;"></p>
+      </div>
+
+      <!-- JOINED STATE -->
+      <div id="joinedView" style="display:none;">
+        <div class="joined">
+          <div class="avatar" id="myAvatar"></div>
+          <div class="hi">You're in, <span id="myName"></span>!</div>
+          <div class="status"><span class="pulse"></span>Waiting for the host to start…</div>
+          <button class="btn ghost" id="leaveBtn">Leave room</button>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ============ single-device testing helper ======================== -->
+  <div class="hint">
+    <span>🧪</span>
+    <div>
+      <b>Testing on one screen.</b> Tap below to drop in pretend players and watch
+      the TV fill up. Real phone-to-TV joining switches on once we add the server.
+    </div>
+  </div>
+  <button class="btn ghost" id="addFakeBtn">+ Add a test player</button>
+
+  <p class="foot">SHINDIG · working name — we'll swap in real games &amp; the live server next.</p>
+</div>
+
+<script>
+/* =============================================================================
+   Net — the FAKE SERVER (the "seam")
+   -----------------------------------------------------------------------------
+   Every UI action goes through this object. Right now it keeps the room in
+   memory and instantly notifies subscribers. Later, the real Socket.IO server
+   will expose these SAME methods, and the UI below won't have to change:
+
+       Net.createRoom()              -> makes a room, returns its code
+       Net.joinRoom(code, {name})    -> adds a player, returns their id (or null)
+       Net.leaveRoom(playerId)       -> removes a player
+       Net.startGame()               -> flips the room to a "playing" phase
+       Net.subscribe(fn)             -> fn(room) runs on every change
+
+   `room` shape (also the future server's shape):
+       { code, phase: 'lobby'|'playing', players: [ {id, name, avatar, color} ] }
+   ========================================================================== */
+const Net = (() => {
+  const AVATARS = ['🦊','🐸','🐼','🐧','🦄','🐙','🐝','🦁','🐰','🐢','🦖','🐳','🦉','🐨','🦩','🐲','🍄','🌮','🚀','👻','🤖','🎩'];
+  const COLORS  = ['#ff5d8f','#ffcf5c','#4dd6c8','#8b7dff','#ff9f6e','#6ec7ff','#c58bff','#7ee787'];
+
+  let room = { code: makeCode(), phase: 'lobby', players: [] };
+  const subs = [];
+  let seq = 0;
+
+  function makeCode(){
+    const L = 'ABCDEFGHJKLMNPQRSTUVWXYZ'; // no I/O to avoid confusion
+    return Array.from({length:4}, () => L[Math.floor(Math.random()*L.length)]).join('');
+  }
+  function emit(){ const snap = structuredClone(room); subs.forEach(fn => fn(snap)); }
+
+  return {
+    createRoom(){ room = { code: makeCode(), phase:'lobby', players:[] }; emit(); return room.code; },
+    getCode(){ return room.code; },
+    joinRoom(code, { name }){
+      if((code||'').toUpperCase() !== room.code) return { ok:false, error:'That room code does not match.' };
+      const clean = (name||'').trim();
+      if(!clean) return { ok:false, error:'Please enter a name.' };
+      if(room.players.length >= 25) return { ok:false, error:'This room is full (25).' };
+      const id = 'p' + (++seq);
+      const i  = room.players.length;
+      room.players.push({ id, name:clean, avatar:AVATARS[i % AVATARS.length], color:COLORS[i % COLORS.length] });
+      emit();
+      return { ok:true, id };
+    },
+    leaveRoom(id){ room.players = room.players.filter(p => p.id !== id); emit(); },
+    startGame(){ if(room.players.length){ room.phase = 'playing'; emit(); } },
+    subscribe(fn){ subs.push(fn); fn(structuredClone(room)); }
+  };
+})();
+
+/* =============================================================================
+   UI wiring — talks only to Net. Nothing below knows it's a mock.
+   ========================================================================== */
+const $ = sel => document.querySelector(sel);
+let myId = null;                 // the player THIS phone controls (if joined)
+let fakeCount = 0;
+
+// ---- TV rendering -----------------------------------------------------------
+function renderTV(room){
+  $('#tvCode').textContent  = room.code;
+  $('#tvCount').textContent = room.players.length + (room.players.length === 1 ? ' player' : ' players');
+
+  const list = $('#tvPlayers');
+  const empty = $('#tvEmpty');
+  list.innerHTML = '';
+
+  if(room.players.length === 0){
+    empty.style.display = '';
+  } else {
+    empty.style.display = 'none';
+    for(const p of room.players){
+      const li = document.createElement('li');
+      li.className = 'player';
+      li.innerHTML =
+        '<span class="avatar" style="background:' + p.color + '33">' + p.avatar + '</span>' +
+        '<span class="name"></span>';
+      li.querySelector('.name').textContent = p.name;
+      list.appendChild(li);
+    }
+  }
+
+  const startBtn = $('#startBtn');
+  startBtn.disabled = room.players.length === 0;
+  startBtn.textContent = room.phase === 'playing'
+    ? 'Game running…'
+    : (room.players.length ? 'Start Game (' + room.players.length + ')' : 'Start Game');
+}
+
+// ---- phone view: swap between join form and joined state --------------------
+function renderPhone(room){
+  const me = room.players.find(p => p.id === myId);
+  if(me){
+    $('#joinView').style.display = 'none';
+    $('#joinedView').style.display = '';
+    $('#myName').textContent = me.name;
+    const av = $('#myAvatar');
+    av.textContent = me.avatar;
+    av.style.background = me.color + '33';
+  } else {
+    myId = null;
+    $('#joinView').style.display = '';
+    $('#joinedView').style.display = 'none';
+  }
+}
+
+Net.subscribe(room => { renderTV(room); renderPhone(room); });
+
+// ---- actions ----------------------------------------------------------------
+$('#joinBtn').addEventListener('click', () => {
+  const code = $('#joinCode').value.trim().toUpperCase();
+  const name = $('#joinName').value;
+  const res  = Net.joinRoom(code, { name });
+  if(res.ok){ myId = res.id; $('#joinError').textContent = ''; $('#joinName').value=''; }
+  else { $('#joinError').textContent = res.error; }
+});
+
+// pressing Enter in either field submits
+['#joinCode','#joinName'].forEach(s =>
+  $(s).addEventListener('keydown', e => { if(e.key === 'Enter') $('#joinBtn').click(); }));
+
+$('#leaveBtn').addEventListener('click', () => { if(myId) Net.leaveRoom(myId); myId = null; });
+
+$('#startBtn').addEventListener('click', () => Net.startGame());
+
+// prefill the real code so testing is one tap
+$('#joinCode').value = Net.getCode();
+
+// ---- single-device helper: add pretend players -----------------------------
+const FAKE_NAMES = ['Sam','Riley','Max','Nova','Kai','Jules','Bex','Theo','Wren','Ada','Milo','Zoe','Cleo','Finn','Iris','Otis'];
+$('#addFakeBtn').addEventListener('click', () => {
+  const name = FAKE_NAMES[fakeCount % FAKE_NAMES.length] + (fakeCount >= FAKE_NAMES.length ? ' ' + (Math.floor(fakeCount/FAKE_NAMES.length)+1) : '');
+  fakeCount++;
+  Net.joinRoom(Net.getCode(), { name });
+});
+</script>
