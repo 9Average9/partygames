@@ -222,6 +222,7 @@
 <!-- ============================ SETUP ================================= -->
 <section class="screen on" id="s-setup">
   <div class="wrap">
+    <button class="btn ghost sm" id="setupBack" style="display:none; align-self:flex-start;">‹ Back to lobby</button>
     <h1 class="title">Hand Duel</h1>
     <p class="lede">A spin on rock · paper · scissors. Set up the match, then play.</p>
 
@@ -755,8 +756,23 @@ $('rematchBtn').addEventListener('click', () => {
   allPlayers().forEach(p => { p.duels=0; p.opp.clear(); });   // party points persist across the night
   toVersus();
 });
-$('reSetupBtn').addEventListener('click', () => { show('s-setup'); });
+$('reSetupBtn').addEventListener('click', () => { if(fromLobby){ location.href = 'index.html'; } else { show('s-setup'); } });
 
-/* boot */
+/* boot — if the lobby handed us its players, use them as the roster */
+let fromLobby = false;
+try{
+  const h = JSON.parse(localStorage.getItem('pg_handoff') || 'null');
+  if(h && h.game === 'hand-duel' && Array.isArray(h.players) && h.players.length >= 2){
+    players = h.players.slice();
+    if(!players.includes('You')) players.unshift('You');
+    localStorage.removeItem('pg_handoff');
+    fromLobby = true;
+  }
+}catch(e){}
+if(fromLobby){
+  $('reSetupBtn').textContent = 'Back to lobby';
+  $('setupBack').style.display = '';
+}
+$('setupBack').addEventListener('click', () => { location.href = 'index.html'; });
 renderSetup();
 </script>
