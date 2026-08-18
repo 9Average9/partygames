@@ -68,24 +68,34 @@
   .movelabel[data-move=invalid]{ color:var(--danger); }
   .movesub{ color:var(--muted); font-size:12.5px; margin-top:-2px; height:16px; }
 
-  /* hand geometry (palm up, fingers point up) */
-  .hand{ position:relative; width:210px; height:250px; margin:6px 0 2px; touch-action:manipulation; }
-  .hand .palm{ position:absolute; left:18px; bottom:0; width:174px; height:118px; border-radius:40px 40px 34px 34px;
-    background:linear-gradient(160deg,var(--blue-2),var(--blue)); box-shadow:inset 0 -8px 18px rgba(0,0,0,.12); }
-  .finger{ position:absolute; width:32px; border-radius:16px; border:none; padding:0; cursor:pointer;
-    background:linear-gradient(180deg,var(--blue-2),var(--blue)); transform-origin:bottom center;
-    transition:transform .26s cubic-bezier(.34,1.4,.5,1), filter .15s; box-shadow:0 3px 8px -2px rgba(0,0,0,.2); }
+  /* hand — soft-shaded vector, fingers fold at the knuckle in 3D.
+     Color comes from CSS vars so a second hand can be reskinned (rose). */
+  .hand{ position:relative; width:214px; height:252px; margin:8px 0 2px; perspective:660px; touch-action:manipulation;
+    --h1:#8ab7ff; --h2:#2f6bff; --hp1:#5b8cff; --hp2:#2f6bff; --hsh:rgba(12,32,92,.32); }
+  .hand .palm{ position:absolute; left:19px; bottom:0; width:176px; height:134px; z-index:1;
+    border-radius:46px 50px 48px 48px;
+    background:radial-gradient(130% 90% at 32% 18%, var(--h1), transparent 56%), linear-gradient(165deg,var(--hp1),var(--hp2) 80%);
+    box-shadow:inset 0 -14px 24px var(--hsh), inset 0 9px 16px rgba(255,255,255,.22), 0 16px 28px -14px rgba(18,38,88,.5); }
+  .hand .palm::before{ content:""; position:absolute; left:-13px; bottom:10px; width:54px; height:82px; z-index:-1;
+    border-radius:60% 42% 50% 52%; transform:rotate(17deg);
+    background:linear-gradient(160deg,var(--hp1),var(--hp2)); box-shadow:inset -6px -9px 14px var(--hsh); }
+  .finger{ position:absolute; width:35px; border:none; padding:0; cursor:pointer; z-index:2;
+    border-radius:21px 21px 15px 15px; transform-origin:bottom center;
+    background:linear-gradient(160deg,var(--h1),var(--h2) 82%);
+    box-shadow:inset 0 8px 11px rgba(255,255,255,.32), inset 0 -13px 17px var(--hsh), 0 5px 12px -3px rgba(18,38,88,.4);
+    transition:transform .32s cubic-bezier(.45,0,.22,1.1), filter .2s; }
+  .finger .nail{ position:absolute; top:11px; left:50%; width:15px; height:19px; transform:translateX(-50%);
+    border-radius:50%; background:radial-gradient(circle at 42% 34%, rgba(255,255,255,.72), rgba(255,255,255,0) 68%); pointer-events:none; }
   .finger:hover{ filter:brightness(1.05); }
-  .finger::after{ content:""; position:absolute; left:8px; right:8px; top:8px; height:10px; border-radius:6px; background:rgba(255,255,255,.28); }
-  .finger.closed{ transform:scaleY(.17); }
-  .finger.thumb{ transform:rotate(-42deg); border-radius:16px; }
-  .finger.thumb.closed{ transform:rotate(-10deg) translateY(4px) scaleY(.42) scaleX(.9); }
-  /* per-finger placement */
-  .f-index { left:34px;  height:96px;  bottom:104px; }
-  .f-middle{ left:74px;  height:112px; bottom:104px; }
-  .f-ring  { left:114px; height:100px; bottom:104px; }
-  .f-pinky { left:154px; height:78px;  bottom:104px; }
-  .thumb   { left:-2px;  height:82px;  bottom:64px; width:34px; }
+  .finger.closed{ transform:rotateX(147deg); filter:brightness(.78); }
+  .finger.thumb{ transform:rotate(-40deg); border-radius:19px 19px 16px 16px; z-index:3; }
+  .finger.thumb.closed{ transform:rotate(-6deg) rotateY(22deg) translate(15px,12px) scale(.8); filter:brightness(.85); }
+  /* per-finger placement (knuckles tucked into the palm top) */
+  .f-index { left:36px;  height:100px; bottom:114px; }
+  .f-middle{ left:77px;  height:118px; bottom:114px; }
+  .f-ring  { left:118px; height:104px; bottom:114px; }
+  .f-pinky { left:158px; height:82px;  bottom:114px; width:32px; }
+  .thumb   { left:1px;   height:86px;  bottom:72px; width:37px; }
 
   .hint{ color:var(--muted); font-size:12px; margin-top:6px; text-align:center; }
 
@@ -171,11 +181,11 @@
     <div class="movelabel" id="moveLabel" data-move="paper">PAPER</div>
     <div class="movesub" id="moveSub">All fingers out</div>
     <div class="hand" id="hand" role="group" aria-label="Your hand — tap fingers to fold them">
-      <button class="finger thumb"  data-f="thumb"  aria-label="Thumb" aria-pressed="false"></button>
-      <button class="finger f-index"  data-f="index"  aria-label="Index finger" aria-pressed="false"></button>
-      <button class="finger f-middle" data-f="middle" aria-label="Middle finger" aria-pressed="false"></button>
-      <button class="finger f-ring"   data-f="ring"   aria-label="Ring finger" aria-pressed="false"></button>
-      <button class="finger f-pinky"  data-f="pinky"  aria-label="Pinky finger" aria-pressed="false"></button>
+      <button class="finger thumb"  data-f="thumb"  aria-label="Thumb" aria-pressed="false"><span class="nail"></span></button>
+      <button class="finger f-index"  data-f="index"  aria-label="Index finger" aria-pressed="false"><span class="nail"></span></button>
+      <button class="finger f-middle" data-f="middle" aria-label="Middle finger" aria-pressed="false"><span class="nail"></span></button>
+      <button class="finger f-ring"   data-f="ring"   aria-label="Ring finger" aria-pressed="false"><span class="nail"></span></button>
+      <button class="finger f-pinky"  data-f="pinky"  aria-label="Pinky finger" aria-pressed="false"><span class="nail"></span></button>
       <div class="palm"></div>
     </div>
     <p class="hint">Tap fingers to fold them in.</p>
@@ -239,17 +249,18 @@ const VERB = { rock:'crushes', paper:'covers', scissors:'cuts' };
 function poseHand(container, closedSet, color, scale){
   // builds a static, folded copy of the geometric hand, scaled and centered
   const s = scale || 0.6;
+  // reskin to rose for the opponent; blue is the CSS default on .hand
   const stylevar = color==='rose'
-    ? '--h1:var(--rose-2);--h2:var(--rose);' : '--h1:var(--blue-2);--h2:var(--blue);';
+    ? '--h1:#ff9bb0;--h2:#ff5470;--hp1:#ff7a95;--hp2:#ff5470;--hsh:rgba(120,20,45,.32);' : '';
   const map = { thumb:'thumb', index:'f-index', middle:'f-middle', ring:'f-ring', pinky:'f-pinky' };
   const fingerHtml = FINGERS.map(f =>
     '<span class="finger '+(f==='thumb'?'thumb ':'')+map[f]+(closedSet.has(f)?' closed':'')+
-    '" style="background:linear-gradient(180deg,var(--h1),var(--h2));"></span>'
+    '"><span class="nail"></span></span>'
   ).join('');
   container.innerHTML =
-    '<div class="hand" style="position:absolute; left:50%; bottom:0; transform-origin:bottom center; '+
+    '<div class="hand" style="position:absolute; left:50%; bottom:0; '+
     'transform:translateX(-50%) scale('+s+'); '+stylevar+'">'+
-    fingerHtml+'<div class="palm" style="background:linear-gradient(160deg,var(--h1),var(--h2));"></div></div>';
+    fingerHtml+'<div class="palm"></div></div>';
 }
 
 /* =============================================================================
