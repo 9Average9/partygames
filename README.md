@@ -34,18 +34,27 @@ same seam at the end — no UI rewrite. See "The server seam" below.
 
 - [x] **Step 1 — Lobby.** Create / join / spectate; host hand-off; players
       appear on the spectator scoreboard.
-- [ ] Step 2 — First game (prompt → answers → vote → winner + scoring).
-- [ ] Step 3 — Teams & more games.
-- [ ] Step 4 — Real server (Node + Socket.IO) so separate phones sync live.
+- [x] **Step 2 — First game: Hand Duel.** A spin on rock/paper/scissors — fold
+      an on-screen hand to shape your move; team matchmaking, a live bench
+      tap-battle, scoring, and a party-night payout.
+- [ ] Step 3 — Polish the Hand Duel; more games.
+- [ ] Step 4 — Real server (Node + Socket.IO) so separate phones sync live,
+      plus the persistent room-level **party-night leaderboard** (two-tier
+      scoring: per-game match points vs. per-player night points, across
+      shuffling teams and free-for-all games).
 
 ## Files
 
 | File | What it is |
 |------|------------|
-| `index.html` | The whole app — one self-contained file, no build. Open it in any browser (great on a phone), or visit the Pages URL above. Shows the optional spectator screen + a phone with Create / Join / Spectate, all on one screen so you can test solo. |
+| `index.html` | The lobby app (Pages entry point). Create / join / spectate on one screen. |
+| `game.html` | **Hand Duel** — the full stitched loop: versus screen → hand duel with a live bench tap-battle → reveal → scoring → party-night payout. Plays until everyone has dueled twice with rotating matchups. |
+| `game-duel.html` | Duel-core prototype (the hand mechanic on its own, vs a bot). |
+| `game-versus.html` | The team-vs-team matchmaking intro on its own. |
+| `game-tapbattle.html` | The bench tap-battle + scoring on its own. |
 
-Because there's no server yet, everything runs **on one device**: create a room,
-then use "Add a test player" to watch the scoreboard fill. Real phone-to-phone
+Everything is self-contained (no build) and runs **on one device** for now —
+each game uses a *fake server* with simulated opponents. Real phone-to-phone
 sync arrives at the server step.
 
 ## The server seam
