@@ -1,0 +1,628 @@
+<title>Party Games Lobby</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Nunito:ital,wght@0,400;0,600;0,700;0,800;1,700&display=swap">
+
+<style>
+  /* =========================================================================
+     PARTY GAMES — lobby (Step 1, v3)
+     Light-first, theme-aware. No emojis: Lucide line icons + initials avatars.
+     Any phone creates a room; a computer/TV can optionally "spectate".
+     ========================================================================= */
+
+  /* ---- LIGHT (default) tokens ------------------------------------------- */
+  :root{
+    --bg:        #eef3fb;   /* soft blue-white ground        */
+    --surface:   #ffffff;   /* cards / panels                */
+    --surface-2: #f2f6fd;   /* inputs / secondary surface    */
+    --line:      #dde6f4;   /* hairline borders              */
+    --text:      #16213d;   /* deep ink                      */
+    --muted:     #62729a;   /* blue-grey secondary text      */
+    --blue:      #2f6bff;   /* primary accent                */
+    --blue-2:    #5b8cff;   /* gradient partner              */
+    --cyan:      #0ba7b8;   /* secondary accent              */
+    --violet:    #6c5cff;   /* cool range accent             */
+    --gold:      #f0a91e;   /* warm pop fill                 */
+    --gold-soft: rgba(240,169,30,.14);
+    --gold-ink:  #a9690a;   /* readable gold text on light   */
+    --on-accent: #ffffff;   /* text on accent fills          */
+    --shadow:    0 16px 40px -22px rgba(30,60,120,.4);
+    --glow-a:    rgba(47,107,255,.10);
+    --glow-b:    rgba(11,167,184,.10);
+    --r: 18px;
+  }
+  /* ---- DARK tokens: system dark, unless an explicit light choice --------- */
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --bg:#0b1533; --surface:#13224b; --surface-2:#1b2e60; --line:#294077;
+      --text:#eaf1ff; --muted:#92a6d8;
+      --blue:#4f9dff; --blue-2:#6aa9ff; --cyan:#46e0d8; --violet:#8b93ff;
+      --gold:#ffc24d; --gold-soft:rgba(255,194,77,.12); --gold-ink:#ffc24d;
+      --on-accent:#0b1533;
+      --shadow:0 18px 40px -18px rgba(0,0,0,.75);
+      --glow-a:rgba(79,157,255,.20); --glow-b:rgba(70,224,216,.13);
+    }
+  }
+  /* explicit dark toggle also wins */
+  :root[data-theme="dark"]{
+    --bg:#0b1533; --surface:#13224b; --surface-2:#1b2e60; --line:#294077;
+    --text:#eaf1ff; --muted:#92a6d8;
+    --blue:#4f9dff; --blue-2:#6aa9ff; --cyan:#46e0d8; --violet:#8b93ff;
+    --gold:#ffc24d; --gold-soft:rgba(255,194,77,.12); --gold-ink:#ffc24d;
+    --on-accent:#0b1533;
+    --shadow:0 18px 40px -18px rgba(0,0,0,.75);
+    --glow-a:rgba(79,157,255,.20); --glow-b:rgba(70,224,216,.13);
+  }
+
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; }
+  body{
+    background:
+      radial-gradient(1200px 620px at 82% -12%, var(--glow-a), transparent 60%),
+      radial-gradient(1000px 520px at -12% 18%, var(--glow-b), transparent 55%),
+      var(--bg);
+    color:var(--text);
+    font-family:"Nunito", system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+    line-height:1.5; min-height:100vh; -webkit-text-size-adjust:100%;
+  }
+
+  .wrap{ width:min(560px, 100% - 28px); margin-inline:auto; padding:22px 0 60px; display:flex; flex-direction:column; gap:22px; }
+
+  /* icons */
+  .ic{ display:inline-flex; align-items:center; justify-content:center; }
+  .ic svg{ width:1em; height:1em; display:block; }
+
+  :focus-visible{ outline:2.5px solid var(--blue); outline-offset:2px; border-radius:6px; }
+
+  /* ---- masthead ---------------------------------------------------------- */
+  .brand{ display:flex; align-items:center; gap:12px; padding-top:6px; }
+  .brand-mark{
+    width:44px; height:44px; border-radius:13px; flex:none; color:var(--on-accent);
+    display:grid; place-items:center; font-size:24px;
+    background:linear-gradient(150deg, var(--blue), var(--cyan));
+    box-shadow:var(--shadow); transform:rotate(-5deg);
+  }
+  .brand h1{ font-family:"Fredoka",sans-serif; font-weight:700; font-size:26px; letter-spacing:.2px; margin:0; line-height:1; text-transform:lowercase; }
+  .brand small{ display:block; color:var(--muted); font-weight:700; font-size:12px; letter-spacing:.3px; }
+
+  /* ---- panels ------------------------------------------------------------ */
+  .panel{ background:var(--surface); border:1px solid var(--line); border-radius:var(--r); box-shadow:var(--shadow); overflow:hidden; }
+  .panel-label{
+    display:flex; align-items:center; gap:8px;
+    font-family:"Fredoka",sans-serif; font-weight:600; text-transform:uppercase;
+    letter-spacing:1.4px; font-size:12px; color:var(--muted);
+    padding:13px 16px; border-bottom:1px solid var(--line); background:var(--surface-2);
+  }
+  .panel-label .ic{ font-size:15px; color:var(--cyan); }
+  .panel-label .tag{ margin-left:auto; font-size:10px; letter-spacing:.8px; color:var(--muted); background:var(--surface); border:1px solid var(--line); padding:3px 8px; border-radius:999px; }
+
+  /* ---- spectator screen -------------------------------------------------- */
+  .spec-body{ padding:20px 18px 20px; text-align:center; }
+  .spec-title{ display:inline-flex; align-items:center; gap:8px; font-family:"Fredoka",sans-serif; font-weight:600; font-size:16px; color:var(--gold-ink); letter-spacing:.2px; margin:0 0 2px; }
+  .spec-title .ic{ font-size:18px; }
+  .spec-sub{ color:var(--muted); font-size:13px; margin:0 0 14px; }
+  .join-line{ color:var(--muted); font-size:13px; margin:0 0 6px; }
+  .join-line b{ color:var(--text); }
+  .code{
+    font-family:"Fredoka",sans-serif; font-weight:700; font-size:clamp(48px,16vw,72px);
+    line-height:1; letter-spacing:.14em; margin:2px 0 8px; padding-left:.14em;
+    background:linear-gradient(160deg, var(--blue) 20%, var(--cyan));
+    -webkit-background-clip:text; background-clip:text; color:transparent;
+  }
+  .linkchip{
+    display:inline-flex; align-items:center; gap:8px; cursor:pointer;
+    font-weight:800; font-size:12.5px; color:var(--text);
+    background:var(--surface-2); border:1px solid var(--line); border-radius:999px;
+    padding:6px 12px 6px 11px; transition:border-color .15s, transform .08s;
+  }
+  .linkchip:hover{ border-color:var(--blue); }
+  .linkchip:active{ transform:translateY(1px); }
+  .linkchip .ic{ font-size:14px; color:var(--blue); }
+  .linkchip .u{ color:var(--muted); font-weight:700; }
+
+  .board{ list-style:none; margin:16px 0 0; padding:0; display:flex; flex-direction:column; gap:8px; text-align:left; }
+  .row{ display:flex; align-items:center; gap:11px; background:var(--surface-2); border:1px solid var(--line); border-radius:13px; padding:9px 12px; animation:pop .32s cubic-bezier(.2,1.3,.4,1) both; }
+  .rank{ font-family:"Fredoka",sans-serif; font-weight:600; font-size:14px; color:var(--muted); width:20px; text-align:center; flex:none; font-variant-numeric:tabular-nums; }
+  .avatar{ width:38px; height:38px; border-radius:50%; flex:none; display:grid; place-items:center; color:#fff; font-family:"Fredoka",sans-serif; font-weight:600; font-size:15px; letter-spacing:.02em; box-shadow:0 4px 10px -4px rgba(0,0,0,.35); }
+  .row .who{ min-width:0; flex:1; }
+  .row .name{ display:flex; align-items:center; gap:5px; font-weight:800; font-size:14px; overflow:hidden; }
+  .row .name span.txt{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .row .name .ic{ font-size:14px; color:var(--gold); flex:none; }
+  .row .meta{ font-size:11.5px; color:var(--muted); }
+  .score{ font-family:"Fredoka",sans-serif; font-weight:600; font-size:16px; color:var(--cyan); flex:none; font-variant-numeric:tabular-nums; text-align:right; }
+  .score small{ display:block; font-family:"Nunito"; font-weight:700; font-size:9px; letter-spacing:.6px; color:var(--muted); }
+  @keyframes pop{ from{opacity:0; transform:scale(.7) translateY(6px);} to{opacity:1; transform:none;} }
+
+  .empty{ margin:16px 0 0; padding:26px 14px; border:1.5px dashed var(--line); border-radius:14px; color:var(--muted); font-size:13.5px; }
+  .empty .ic{ font-size:30px; color:var(--muted); margin-bottom:8px; }
+
+  /* ---- phone ------------------------------------------------------------- */
+  .phone-body{ padding:18px 16px 20px; }
+
+  .menu{ display:flex; flex-direction:column; gap:11px; }
+  .menu .lead{ text-align:center; color:var(--muted); font-size:13.5px; margin:2px 0 6px; }
+  .choice{
+    -webkit-appearance:none; appearance:none; cursor:pointer; text-align:left; width:100%;
+    display:flex; align-items:center; gap:13px; background:var(--surface-2);
+    border:1.5px solid var(--line); border-radius:14px; padding:14px 15px; color:var(--text);
+    transition:border-color .15s, transform .08s, background .15s;
+  }
+  .choice:hover{ border-color:var(--blue); }
+  .choice:active{ transform:translateY(1px); }
+  .choice .ic{ font-size:22px; flex:none; width:34px; color:var(--blue); }
+  .choice .ct{ font-family:"Fredoka",sans-serif; font-weight:600; font-size:16.5px; line-height:1.15; }
+  .choice .cs{ font-size:12px; color:var(--muted); }
+  .choice.hero{ border-color:transparent; background:linear-gradient(150deg, var(--blue), var(--blue-2)); color:var(--on-accent); }
+  .choice.hero .ic{ color:var(--on-accent); }
+  .choice.hero .cs{ color:rgba(255,255,255,.8); }
+  :root[data-theme="dark"] .choice.hero .cs,
+  :root:not([data-theme="light"]) .choice.hero .cs{ }
+
+  .field{ margin-bottom:13px; }
+  .field label{ display:block; font-weight:800; font-size:11px; letter-spacing:1px; text-transform:uppercase; color:var(--muted); margin:0 0 6px 2px; }
+  input[type=text]{
+    width:100%; font-family:inherit; font-weight:700; font-size:16px; color:var(--text);
+    background:var(--surface-2); border:1.5px solid var(--line); border-radius:12px;
+    padding:13px 14px; outline:none; transition:border-color .15s, box-shadow .15s;
+  }
+  input[type=text]::placeholder{ color:var(--muted); opacity:.65; font-weight:600; }
+  input[type=text]:focus{ border-color:var(--blue); box-shadow:0 0 0 3px rgba(47,107,255,.18); }
+  #joinCode{ text-transform:uppercase; letter-spacing:.28em; font-family:"Fredoka",sans-serif; font-size:22px; text-align:center; }
+
+  .btn{
+    -webkit-appearance:none; appearance:none; cursor:pointer;
+    display:inline-flex; align-items:center; justify-content:center; gap:9px;
+    font-family:"Fredoka",sans-serif; font-weight:600; font-size:16px; color:var(--on-accent);
+    background:linear-gradient(150deg, var(--blue), var(--blue-2)); border:none; border-radius:13px;
+    padding:14px 18px; width:100%; box-shadow:0 10px 22px -12px rgba(47,107,255,.9);
+    transition:transform .08s, filter .15s;
+  }
+  .btn .ic{ font-size:18px; }
+  .btn:hover{ filter:brightness(1.04); }
+  .btn:active{ transform:translateY(1px) scale(.995); }
+  .btn:disabled{ opacity:.5; cursor:not-allowed; box-shadow:none; filter:grayscale(.25); }
+  .btn.gold{ background:linear-gradient(150deg, var(--gold), #ffcf5c); box-shadow:0 10px 22px -12px rgba(240,169,30,.85); }
+  .btn.ghost{ background:transparent; color:var(--muted); box-shadow:none; border:1.5px solid var(--line); font-weight:600; }
+  .btn.ghost:hover{ color:var(--text); border-color:var(--muted); filter:none; }
+
+  .form-head{ display:flex; align-items:center; gap:10px; margin:0 0 14px; }
+  .back{ cursor:pointer; background:var(--surface-2); border:1px solid var(--line); color:var(--text); width:34px; height:34px; border-radius:10px; font-size:18px; flex:none; display:grid; place-items:center; }
+  .back:hover{ border-color:var(--muted); }
+  .form-head h3{ font-family:"Fredoka",sans-serif; font-weight:600; font-size:18px; margin:0; }
+
+  .joined{ text-align:center; padding:6px 4px 2px; animation:pop .3s cubic-bezier(.2,1.3,.4,1) both; }
+  .joined .avatar{ width:72px; height:72px; font-size:28px; margin:4px auto 12px; }
+  .joined .hi{ font-family:"Fredoka",sans-serif; font-weight:600; font-size:22px; }
+  .joined .status{ color:var(--muted); font-size:13.5px; margin:5px 0 16px; display:flex; align-items:center; justify-content:center; gap:7px; }
+  .pulse{ display:inline-block; width:8px; height:8px; border-radius:50%; background:var(--cyan); animation:blink 1.2s infinite; }
+  @keyframes blink{ 0%,100%{opacity:1} 50%{opacity:.25} }
+  .hostcard{ display:inline-flex; align-items:center; gap:7px; margin-bottom:14px; font-weight:800; font-size:12px; color:var(--gold-ink); background:var(--gold-soft); border:1px solid var(--gold-soft); padding:5px 12px; border-radius:999px; }
+  .hostcard .ic{ font-size:14px; color:var(--gold); }
+  .share-note{ color:var(--muted); font-size:12.5px; margin:0 0 12px; }
+  .share-note b{ color:var(--text); }
+
+  /* phone roster + host handoff */
+  .roster{ text-align:left; margin-top:6px; border-top:1px solid var(--line); padding-top:14px; }
+  .roster-head{ display:flex; align-items:center; gap:7px; font-family:"Fredoka",sans-serif; font-weight:600; font-size:13px; color:var(--muted); text-transform:uppercase; letter-spacing:.8px; margin-bottom:4px; }
+  .roster-head .ic{ font-size:15px; }
+  .roster-hint{ color:var(--muted); font-size:12px; margin:0 0 10px; }
+  .prow{ display:flex; align-items:center; gap:10px; padding:7px 0; }
+  .prow .avatar{ width:34px; height:34px; font-size:13px; margin:0; }
+  .prow .pname{ flex:1; min-width:0; font-weight:800; font-size:14px; display:flex; align-items:center; gap:5px; }
+  .prow .pname .txt{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .prow .pname .ic{ font-size:14px; color:var(--gold); flex:none; }
+  .prow .youtag{ font-size:11px; font-weight:800; color:var(--muted); background:var(--surface-2); border:1px solid var(--line); padding:2px 7px; border-radius:999px; flex:none; }
+  .mkhost{ cursor:pointer; display:inline-flex; align-items:center; gap:6px; font-family:"Nunito"; font-weight:800; font-size:12px; color:var(--gold-ink); background:var(--gold-soft); border:1px solid var(--gold-soft); border-radius:999px; padding:6px 11px; flex:none; transition:filter .15s; }
+  .mkhost .ic{ font-size:14px; color:var(--gold); }
+  .mkhost:hover{ filter:brightness(1.03); }
+
+  .stack{ display:flex; flex-direction:column; gap:10px; }
+  .error{ color:var(--blue); min-height:16px; margin:8px 0 0; font-weight:700; font-size:13px; text-align:center; }
+
+  .hint{ display:flex; gap:10px; align-items:flex-start; color:var(--muted); font-size:12.5px; line-height:1.45; background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:11px 13px; box-shadow:var(--shadow); }
+  .hint .ic{ font-size:17px; color:var(--cyan); flex:none; margin-top:1px; }
+  .hint b{ color:var(--text); }
+  .foot{ text-align:center; color:var(--muted); font-size:11.5px; opacity:.9; }
+
+  #toast{
+    position:fixed; left:50%; bottom:22px; transform:translateX(-50%) translateY(20px);
+    background:var(--text); color:var(--bg); font-weight:800; font-size:13px;
+    padding:10px 16px; border-radius:999px; box-shadow:var(--shadow);
+    opacity:0; pointer-events:none; transition:opacity .2s, transform .2s; z-index:9;
+    display:inline-flex; align-items:center; gap:8px;
+  }
+  #toast.show{ opacity:1; transform:translateX(-50%) translateY(0); }
+  #toast .ic{ font-size:15px; }
+
+  @media (prefers-reduced-motion:reduce){ *{ animation:none !important; } }
+</style>
+
+<div class="wrap">
+
+  <div class="brand">
+    <div class="brand-mark"><span class="ic" data-icon="gamepad"></span></div>
+    <div>
+      <h1>party games</h1>
+      <small>lobby preview · no host computer needed</small>
+    </div>
+  </div>
+
+  <!-- ===================== SPECTATOR SCREEN ============================ -->
+  <section class="panel">
+    <div class="panel-label"><span class="ic" data-icon="monitor"></span> Spectator screen <span class="tag">OPTIONAL</span></div>
+    <div class="spec-body">
+
+      <div id="specNone">
+        <div class="empty">
+          <div class="ic" data-icon="monitor"></div>
+          Open this on a computer or TV to watch the action.<br>
+          Create a room on your phone below to begin.
+        </div>
+      </div>
+
+      <div id="specRoom" style="display:none;">
+        <p class="spec-title"><span class="ic" data-icon="trophy"></span> The standings</p>
+        <p class="spec-sub">Scores go live once a game starts.</p>
+
+        <p class="join-line">Join at <b>partygames.link</b> with code</p>
+        <div class="code" id="specCode">----</div>
+        <div class="linkchip" id="specLink" role="button" tabindex="0" title="Copy the invite link">
+          <span class="ic" data-icon="link"></span> <span class="u" id="specLinkText">partygames.link/r/----</span>
+        </div>
+
+        <ul class="board" id="specBoard"></ul>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ========================= PHONE =================================== -->
+  <section class="panel">
+    <div class="panel-label"><span class="ic" data-icon="smartphone"></span> Your phone</div>
+    <div class="phone-body">
+
+      <!-- HOME MENU -->
+      <div id="v-home" class="menu">
+        <p class="lead">Everyone plays from their phone. Pick one:</p>
+        <button class="choice hero" data-go="create">
+          <span class="ic" data-icon="sparkles"></span>
+          <span><span class="ct">Create a room</span><span class="cs">Start a party &amp; invite friends</span></span>
+        </button>
+        <button class="choice" data-go="join">
+          <span class="ic" data-icon="target"></span>
+          <span><span class="ct">Join a room</span><span class="cs">Got a code or link? Hop in</span></span>
+        </button>
+        <button class="choice" data-go="spectate">
+          <span class="ic" data-icon="monitor"></span>
+          <span><span class="ct">Spectate</span><span class="cs">Turn a TV into the scoreboard</span></span>
+        </button>
+      </div>
+
+      <!-- CREATE -->
+      <div id="v-create" style="display:none;">
+        <div class="form-head"><button class="back" data-go="home" aria-label="Back"><span class="ic" data-icon="chevronLeft"></span></button><h3>Create a room</h3></div>
+        <div class="field">
+          <label for="createName">Your name</label>
+          <input id="createName" type="text" autocomplete="off" maxlength="12" placeholder="Type a nickname">
+        </div>
+        <button class="btn gold" id="createBtn"><span class="ic" data-icon="sparkles"></span> Create the party</button>
+        <p class="error" id="createError"></p>
+      </div>
+
+      <!-- JOIN -->
+      <div id="v-join" style="display:none;">
+        <div class="form-head"><button class="back" data-go="home" aria-label="Back"><span class="ic" data-icon="chevronLeft"></span></button><h3>Join a room</h3></div>
+        <div class="field">
+          <label for="joinCode">Room code</label>
+          <input id="joinCode" type="text" inputmode="latin" autocomplete="off" maxlength="4" placeholder="ABCD">
+        </div>
+        <div class="field">
+          <label for="joinName">Your name</label>
+          <input id="joinName" type="text" autocomplete="off" maxlength="12" placeholder="Type a nickname">
+        </div>
+        <button class="btn" id="joinBtn"><span class="ic" data-icon="target"></span> Join the party</button>
+        <p class="error" id="joinError"></p>
+      </div>
+
+      <!-- SPECTATE -->
+      <div id="v-spectate" style="display:none;">
+        <div class="form-head"><button class="back" data-go="home" aria-label="Back"><span class="ic" data-icon="chevronLeft"></span></button><h3>Spectate</h3></div>
+        <div class="joined">
+          <div class="avatar" style="background:var(--cyan)"><span class="ic" data-icon="monitor"></span></div>
+          <div class="hi">Spectating</div>
+          <div class="status"><span class="pulse"></span> This device is now a scoreboard.</div>
+          <p class="share-note">The <b>Spectator screen</b> above shows the live room — that's what a TV would display. No playing from here.</p>
+          <button class="btn ghost" data-go="home">Done</button>
+        </div>
+      </div>
+
+      <!-- JOINED (playing) -->
+      <div id="v-joined" style="display:none;">
+        <div class="joined">
+          <div class="avatar" id="myAvatar"></div>
+          <div class="hi">You're in, <span id="myName"></span>!</div>
+          <div id="hostBadge" class="hostcard" style="display:none;"><span class="ic" data-icon="crown"></span> You're the host</div>
+          <div class="status"><span class="pulse"></span> <span id="myStatus">Waiting for the host to start…</span></div>
+
+          <div id="hostShare" class="stack" style="display:none;">
+            <p class="share-note">Share <b id="shareCode">----</b> or the link so friends can join.</p>
+            <button class="btn ghost" id="copyLinkBtn"><span class="ic" data-icon="link"></span> Copy invite link</button>
+            <button class="btn gold" id="startBtn"><span class="ic" data-icon="play"></span> Start Game</button>
+          </div>
+
+          <!-- roster (everyone sees it; host gets Make-host buttons) -->
+          <div class="roster" id="roster">
+            <div class="roster-head"><span class="ic" data-icon="users"></span> <span id="rosterCount">Players</span></div>
+            <p class="roster-hint" id="rosterHint" style="display:none;">Tap “Make host” to pass the crown before you leave.</p>
+            <div id="rosterList"></div>
+          </div>
+
+          <button class="btn ghost" id="leaveBtn" style="margin-top:14px;"><span class="ic" data-icon="logout"></span> Leave room</button>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ============ single-device testing helper ======================== -->
+  <div class="hint">
+    <span class="ic" data-icon="flask"></span>
+    <div>
+      <b>Testing on one screen.</b> Create a room, then add pretend friends and
+      watch the scoreboard fill up. Real phone-to-phone joining switches on once
+      we add the server.
+    </div>
+  </div>
+  <button class="btn ghost" id="addFakeBtn" disabled><span class="ic" data-icon="userplus"></span> Add a test player</button>
+
+  <p class="foot">party games · early lobby — real games &amp; the live server come next.</p>
+</div>
+
+<div id="toast"></div>
+
+<script>
+/* =============================================================================
+   ICONS — Lucide (https://lucide.dev), MIT licensed. Inlined so they work
+   inside the artifact sandbox (no external requests). Stroke uses currentColor
+   so every icon inherits its parent's theme color.
+   ========================================================================== */
+const ICONS = {
+  gamepad:   '<line x1="6" x2="10" y1="11" y2="11"/><line x1="8" x2="8" y1="9" y2="13"/><line x1="15" x2="15.01" y1="12" y2="12"/><line x1="18" x2="18.01" y1="10" y2="10"/><path d="M17.32 5H6.68a4 4 0 0 0-3.978 3.59c-.006.052-.01.101-.017.152C2.604 9.416 2 14.456 2 16a3 3 0 0 0 3 3c1 0 1.5-.5 2-1l1.414-1.414A2 2 0 0 1 9.828 16h4.344a2 2 0 0 1 1.414.586L17 18c.5.5 1 1 2 1a3 3 0 0 0 3-3c0-1.544-.604-6.584-.685-7.258-.007-.05-.011-.1-.017-.151A4 4 0 0 0 17.32 5z"/>',
+  monitor:   '<rect width="20" height="14" x="2" y="3" rx="2"/><line x1="8" x2="16" y1="21" y2="21"/><line x1="12" x2="12" y1="17" y2="21"/>',
+  smartphone:'<rect width="14" height="20" x="5" y="2" rx="2.5"/><path d="M12 18h.01"/>',
+  trophy:    '<path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/>',
+  link:      '<path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>',
+  sparkles:  '<path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .962 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.962 0z"/><path d="M20 3v4"/><path d="M22 5h-4"/><path d="M4 17v2"/><path d="M5 18H3"/>',
+  target:    '<circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/>',
+  crown:     '<path d="M11.562 3.266a.5.5 0 0 1 .876 0L15.39 8.87a1 1 0 0 0 1.516.294L21.183 5.5a.5.5 0 0 1 .798.519l-2.834 10.246a1 1 0 0 1-.956.734H5.81a1 1 0 0 1-.957-.734L2.02 6.02a.5.5 0 0 1 .798-.519l4.276 3.664a1 1 0 0 0 1.516-.294z"/><path d="M5 21h14"/>',
+  play:      '<polygon points="6 3 20 12 6 21 6 3"/>',
+  logout:    '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/>',
+  users:     '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',
+  userplus:  '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" x2="19" y1="8" y2="14"/><line x1="22" x2="16" y1="11" y2="11"/>',
+  chevronLeft:'<path d="m15 18-6-6 6-6"/>',
+  flask:     '<path d="M10 2v7.31"/><path d="M14 9.3V1.99"/><path d="M8.5 2h7"/><path d="M14 9.3a6.5 6.5 0 1 1-4 0"/><path d="M5.58 16.5h12.85"/>',
+  check:     '<path d="M20 6 9 17l-5-5"/>'
+};
+function icon(name){
+  return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+(ICONS[name]||'')+'</svg>';
+}
+document.querySelectorAll('[data-icon]').forEach(el => el.innerHTML = icon(el.dataset.icon));
+
+/* =============================================================================
+   Net — the FAKE SERVER (the "seam")
+   No host computer: a PLAYER creates the room. A TV/computer can "spectate".
+   The real Socket.IO server will expose these SAME methods later.
+
+     Net.createRoom({name})           -> { ok, code, id }  (you become host)
+     Net.joinRoom(code, {name})       -> { ok, id, error }
+     Net.appointHost(hostId, newId)   -> host hands the crown to another player
+     Net.leaveRoom(playerId)          -> if host leaves w/o appointing, the crown
+                                         goes to the NEXT player in join order
+                                         after the host (wrapping); empty = ends
+     Net.startGame(playerId)          -> host only; flips room to 'playing'
+     Net.getRoom() / Net.linkFor(code)
+     Net.subscribe(fn)                -> fn(room|null) on every change
+
+   room: { code, phase:'lobby'|'playing', hostId, players:[{id,name,avatar,color,score}] }
+   ========================================================================== */
+const Net = (() => {
+  // avatar disc colors — all mid/dark enough for white initials
+  const COLORS = ['#2f6bff','#0ea5a5','#7b5cff','#e0447e','#e8730c','#0e9f6e','#c026d3','#0891b2','#d6421f','#2563eb','#7c3aed','#059669','#db2777','#ca8a04','#4f46e5','#0d9488'];
+  const HOST = 'partygames.link';
+  let room = null, subs = [], seq = 0;
+
+  function makeCode(){ const L='ABCDEFGHJKLMNPQRSTUVWXYZ'; return Array.from({length:4},()=>L[Math.floor(Math.random()*L.length)]).join(''); }
+  function initials(name){
+    const parts = name.trim().split(/\s+/).filter(Boolean);
+    if(parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
+    return name.trim().slice(0,2).toUpperCase();
+  }
+  function makePlayer(name){
+    const i = room ? room.players.length : 0;
+    return { id:'p'+(++seq), name:name.trim(), avatar:initials(name), color:COLORS[i%COLORS.length], score:0 };
+  }
+  function emit(){ const snap = room ? structuredClone(room) : null; subs.forEach(fn => fn(snap)); }
+
+  return {
+    createRoom({ name }){
+      const clean = (name||'').trim();
+      if(!clean) return { ok:false, error:'Please enter a name.' };
+      room = { code:makeCode(), phase:'lobby', hostId:null, players:[] };
+      const p = makePlayer(clean); room.hostId = p.id; room.players.push(p);
+      emit(); return { ok:true, code:room.code, id:p.id };
+    },
+    joinRoom(code, { name }){
+      if(!room) return { ok:false, error:'No room yet — create one first.' };
+      if((code||'').toUpperCase() !== room.code) return { ok:false, error:'That code does not match a room.' };
+      const clean = (name||'').trim();
+      if(!clean) return { ok:false, error:'Please enter a name.' };
+      if(room.players.length >= 25) return { ok:false, error:'This room is full (25 players).' };
+      const p = makePlayer(clean); room.players.push(p);
+      emit(); return { ok:true, id:p.id };
+    },
+    appointHost(hostId, newId){
+      if(!room || room.hostId !== hostId) return { ok:false };
+      if(!room.players.some(p => p.id === newId)) return { ok:false };
+      room.hostId = newId; emit(); return { ok:true };
+    },
+    leaveRoom(id){
+      if(!room) return;
+      const idx = room.players.findIndex(p => p.id === id);
+      const wasHost = room.hostId === id;
+      // successor = next player in join order after the host, wrapping around
+      let successorId = null;
+      if(wasHost && room.players.length > 1){
+        for(let k = 1; k < room.players.length; k++){
+          const cand = room.players[(idx + k) % room.players.length];
+          if(cand.id !== id){ successorId = cand.id; break; }
+        }
+      }
+      room.players = room.players.filter(p => p.id !== id);
+      if(room.players.length === 0) room = null;
+      else if(wasHost) room.hostId = successorId || room.players[0].id;
+      emit();
+    },
+    startGame(id){ if(room && room.hostId === id && room.players.length){ room.phase = 'playing'; emit(); } },
+    getRoom(){ return room ? structuredClone(room) : null; },
+    linkFor(code){ return HOST + '/r/' + (code || '----'); },
+    subscribe(fn){ subs.push(fn); fn(room ? structuredClone(room) : null); }
+  };
+})();
+
+/* =============================================================================
+   UI wiring — talks only to Net.
+   ========================================================================== */
+const $ = s => document.querySelector(s);
+let myId = null, fakeCount = 0;
+
+function toast(msg, ok){
+  const t = $('#toast');
+  t.innerHTML = (ok ? icon('check') : '') + '<span></span>';
+  t.querySelector('span').textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toast._t); toast._t = setTimeout(() => t.classList.remove('show'), 1700);
+}
+async function copyLink(text){
+  try{ await navigator.clipboard.writeText(text); toast('Invite link copied', true); }
+  catch{ toast(text); }
+}
+function avatarEl(el, p){ el.textContent = p.avatar; el.style.background = p.color; }
+
+// ---- phone screen switching -------------------------------------------------
+const VIEWS = ['home','create','join','spectate','joined'];
+function show(v){ VIEWS.forEach(x => { const el = $('#v-'+x); if(el) el.style.display = (x===v ? '' : 'none'); }); }
+document.querySelectorAll('[data-go]').forEach(el => el.addEventListener('click', () => {
+  const go = el.dataset.go;
+  if(go === 'create'){ show('create'); setTimeout(() => $('#createName').focus(), 50); }
+  else if(go === 'join'){ show('join'); setTimeout(() => $('#joinCode').focus(), 50); }
+  else if(go === 'spectate'){ show('spectate'); }
+  else show('home');
+}));
+
+// ---- spectator render -------------------------------------------------------
+function renderSpectator(room){
+  const none = $('#specNone'), box = $('#specRoom');
+  if(!room){ none.style.display=''; box.style.display='none'; return; }
+  none.style.display='none'; box.style.display='';
+  $('#specCode').textContent = room.code;
+  $('#specLinkText').textContent = Net.linkFor(room.code);
+
+  const ranked = [...room.players].sort((a,b) => b.score - a.score);
+  const board = $('#specBoard'); board.innerHTML = '';
+  ranked.forEach((p,i) => {
+    const li = document.createElement('li'); li.className = 'row';
+    li.innerHTML =
+      '<span class="rank">'+(i+1)+'</span>' +
+      '<span class="avatar"></span>' +
+      '<span class="who"><span class="name"><span class="txt"></span></span><span class="meta">'+(room.phase==='playing'?'playing':'ready to play')+'</span></span>' +
+      '<span class="score">'+p.score+'<small>PTS</small></span>';
+    avatarEl(li.querySelector('.avatar'), p);
+    li.querySelector('.name .txt').textContent = p.name;
+    if(p.id === room.hostId){ const c = document.createElement('span'); c.className='ic'; c.innerHTML = icon('crown'); li.querySelector('.name').appendChild(c); }
+    board.appendChild(li);
+  });
+}
+
+// ---- phone joined render ----------------------------------------------------
+function renderPhone(room){
+  const me = room && room.players.find(p => p.id === myId);
+  if(!me){ if(myId){ myId = null; show('home'); } return; }
+  show('joined');
+  $('#myName').textContent = me.name;
+  avatarEl($('#myAvatar'), me);
+
+  const isHost = room.hostId === me.id;
+  $('#hostBadge').style.display = isHost ? '' : 'none';
+  $('#hostShare').style.display = isHost ? '' : 'none';
+  $('#shareCode').textContent = room.code;
+  $('#myStatus').textContent = room.phase === 'playing'
+    ? 'Game on!'
+    : (isHost ? 'Start when everyone is in.' : 'Waiting for the host to start…');
+
+  // roster
+  $('#rosterCount').textContent = room.players.length + (room.players.length===1?' player':' players');
+  $('#rosterHint').style.display = (isHost && room.players.length > 1) ? '' : 'none';
+  const list = $('#rosterList'); list.innerHTML = '';
+  room.players.forEach(p => {
+    const row = document.createElement('div'); row.className = 'prow';
+    const isMe = p.id === me.id, pHost = p.id === room.hostId;
+    row.innerHTML =
+      '<span class="avatar"></span>' +
+      '<span class="pname"><span class="txt"></span>'+(pHost?'<span class="ic">'+icon('crown')+'</span>':'')+'</span>' +
+      (isMe ? '<span class="youtag">you</span>' : '') +
+      (isHost && !isMe ? '<button class="mkhost" data-uid="'+p.id+'"><span class="ic">'+icon('crown')+'</span> Make host</button>' : '');
+    avatarEl(row.querySelector('.avatar'), p);
+    row.querySelector('.pname .txt').textContent = p.name;
+    list.appendChild(row);
+  });
+}
+
+function renderHelper(room){ $('#addFakeBtn').disabled = !room; }
+
+Net.subscribe(room => { renderSpectator(room); renderPhone(room); renderHelper(room); });
+
+// ---- actions ----------------------------------------------------------------
+$('#createBtn').addEventListener('click', () => {
+  const res = Net.createRoom({ name: $('#createName').value });
+  if(res.ok){ myId = res.id; $('#createError').textContent=''; $('#createName').value=''; }
+  else $('#createError').textContent = res.error;
+});
+$('#createName').addEventListener('keydown', e => { if(e.key==='Enter') $('#createBtn').click(); });
+
+$('#joinBtn').addEventListener('click', () => {
+  const res = Net.joinRoom($('#joinCode').value.trim().toUpperCase(), { name: $('#joinName').value });
+  if(res.ok){ myId = res.id; $('#joinError').textContent=''; $('#joinName').value=''; }
+  else $('#joinError').textContent = res.error;
+});
+['#joinCode','#joinName'].forEach(s => $(s).addEventListener('keydown', e => { if(e.key==='Enter') $('#joinBtn').click(); }));
+// harden the code field: letters only, always uppercase
+$('#joinCode').addEventListener('input', e => {
+  e.target.value = e.target.value.toUpperCase().replace(/[^A-Z]/g,'').slice(0,4);
+});
+
+$('#leaveBtn').addEventListener('click', () => { if(myId) Net.leaveRoom(myId); myId=null; show('home'); });
+$('#startBtn').addEventListener('click', () => { if(myId) Net.startGame(myId); });
+$('#copyLinkBtn').addEventListener('click', () => { const r = Net.getRoom(); if(r) copyLink(Net.linkFor(r.code)); });
+$('#specLink').addEventListener('click', () => { const r = Net.getRoom(); if(r) copyLink(Net.linkFor(r.code)); });
+$('#specLink').addEventListener('keydown', e => { if(e.key==='Enter'||e.key===' '){ e.preventDefault(); $('#specLink').click(); } });
+
+// delegate "Make host" clicks (buttons are re-rendered each update)
+$('#rosterList').addEventListener('click', e => {
+  const btn = e.target.closest('.mkhost'); if(!btn || !myId) return;
+  const r = Net.getRoom(); const target = r && r.players.find(p => p.id === btn.dataset.uid);
+  const res = Net.appointHost(myId, btn.dataset.uid);
+  if(res.ok && target) toast(target.name + ' is now the host', true);
+});
+
+// ---- single-device helper: add pretend players ------------------------------
+const FAKE_NAMES = ['Sam','Riley','Max','Nova','Kai','Jules','Bex','Theo','Wren','Ada','Milo','Zoe','Cleo','Finn','Iris','Otis'];
+$('#addFakeBtn').addEventListener('click', () => {
+  const r = Net.getRoom(); if(!r) return;
+  const name = FAKE_NAMES[fakeCount % FAKE_NAMES.length] + (fakeCount >= FAKE_NAMES.length ? ' '+(Math.floor(fakeCount/FAKE_NAMES.length)+1) : '');
+  fakeCount++;
+  Net.joinRoom(r.code, { name });
+});
+
+show('home');
+</script>
