@@ -379,6 +379,37 @@
   <p class="foot">party games · early lobby — real games &amp; the live server come next.</p>
 </div>
 
+<!-- ===================== GAME SELECT MENU ============================ -->
+<style>
+  .gm{ position:fixed; inset:0; z-index:20; display:none; align-items:flex-end; justify-content:center; background:rgba(10,20,45,.5); backdrop-filter:blur(3px); }
+  .gm.on{ display:flex; }
+  .gm-card{ width:min(560px,100%); background:var(--surface); border:1px solid var(--line); border-radius:22px 22px 0 0; padding:20px 18px calc(24px + env(safe-area-inset-bottom)); box-shadow:var(--shadow); animation:gmUp .28s cubic-bezier(.2,1,.4,1) both; }
+  @keyframes gmUp{ from{transform:translateY(30px); opacity:0} to{transform:none; opacity:1} }
+  .gm-head{ display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; }
+  .gm-head h2{ font-family:"Fredoka",sans-serif; font-weight:600; font-size:20px; margin:0; }
+  .gm-x{ width:34px; height:34px; border-radius:10px; border:1px solid var(--line); background:var(--surface-2); color:var(--text); cursor:pointer; font-size:15px; }
+  .gm-grid{ display:grid; grid-template-columns:1fr 1fr; gap:11px; }
+  .gm-tile{ text-align:left; border:1.5px solid var(--line); border-radius:16px; padding:14px; background:var(--surface-2); cursor:pointer; position:relative; transition:border-color .15s, transform .08s; color:var(--text); }
+  .gm-tile:active{ transform:translateY(1px); }
+  .gm-tile.ready:hover{ border-color:var(--blue); }
+  .gm-tile.soon{ opacity:.6; cursor:not-allowed; }
+  .gm-tile .gi{ display:inline-flex; font-size:26px; color:var(--blue); }
+  .gm-tile .gi svg{ width:1em; height:1em; }
+  .gm-tile .gn{ font-family:"Fredoka",sans-serif; font-weight:600; font-size:16px; margin-top:8px; }
+  .gm-tile .gd{ font-size:12px; color:var(--muted); line-height:1.35; margin-top:1px; }
+  .gm-badge{ position:absolute; top:10px; right:10px; font-size:9.5px; font-weight:800; letter-spacing:.5px; text-transform:uppercase; padding:3px 7px; border-radius:999px; }
+  .gm-badge.play{ background:rgba(47,107,255,.14); color:var(--blue); }
+  .gm-badge.soon{ background:var(--surface); border:1px solid var(--line); color:var(--muted); }
+  .gm-note{ text-align:center; color:var(--muted); font-size:12px; margin:14px 0 0; }
+</style>
+<div id="gameMenu" class="gm" role="dialog" aria-label="Choose a game">
+  <div class="gm-card">
+    <div class="gm-head"><h2>Choose a game</h2><button class="gm-x" id="gmClose" aria-label="Back to lobby">✕</button></div>
+    <div class="gm-grid" id="gmGrid"></div>
+    <p class="gm-note">Host picks — everyone plays. More games coming soon.</p>
+  </div>
+</div>
+
 <div id="toast"></div>
 
 <script>
@@ -402,7 +433,11 @@ const ICONS = {
   userplus:  '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" x2="19" y1="8" y2="14"/><line x1="22" x2="16" y1="11" y2="11"/>',
   chevronLeft:'<path d="m15 18-6-6 6-6"/>',
   flask:     '<path d="M10 2v7.31"/><path d="M14 9.3V1.99"/><path d="M8.5 2h7"/><path d="M14 9.3a6.5 6.5 0 1 1-4 0"/><path d="M5.58 16.5h12.85"/>',
-  check:     '<path d="M20 6 9 17l-5-5"/>'
+  check:     '<path d="M20 6 9 17l-5-5"/>',
+  hand:      '<path d="M18 11V6a2 2 0 0 0-2-2a2 2 0 0 0-2 2"/><path d="M14 10V4a2 2 0 0 0-2-2a2 2 0 0 0-2 2v2"/><path d="M10 10.5V6a2 2 0 0 0-2-2a2 2 0 0 0-2 2v8"/><path d="M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15"/>',
+  help:      '<circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/>',
+  pencil:    '<path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/>',
+  zap:       '<polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>'
 };
 function icon(name){
   return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+(ICONS[name]||'')+'</svg>';
@@ -602,7 +637,40 @@ $('#joinCode').addEventListener('input', e => {
 });
 
 $('#leaveBtn').addEventListener('click', () => { if(myId) Net.leaveRoom(myId); myId=null; show('home'); });
-$('#startBtn').addEventListener('click', () => { if(myId) Net.startGame(myId); });
+$('#startBtn').addEventListener('click', openGameMenu);
+
+/* ---- game select menu: host picks a game, then it launches ---------------- */
+const GAMES = [
+  { id:'hand-duel', name:'Hand Duel',   desc:'Rock · Paper · Scissors, reinvented', icon:'hand',   ready:true },
+  { id:'trivia',    name:'Trivia Rush',  desc:'Fast questions, faster fingers',       icon:'help',   ready:false },
+  { id:'draw',      name:'Quick Draw',   desc:'Draw it, they guess it',               icon:'pencil', ready:false },
+  { id:'word',      name:'Word Sprint',  desc:'Race to the answer',                   icon:'zap',    ready:false }
+];
+function openGameMenu(){
+  $('#gmGrid').innerHTML = GAMES.map(g =>
+    '<button class="gm-tile '+(g.ready?'ready':'soon')+'" data-game="'+g.id+'"'+(g.ready?'':' disabled')+'>'+
+      '<span class="gm-badge '+(g.ready?'play':'soon')+'">'+(g.ready?'Play':'Soon')+'</span>'+
+      '<span class="gi">'+icon(g.icon)+'</span>'+
+      '<div class="gn">'+g.name+'</div><div class="gd">'+g.desc+'</div>'+
+    '</button>'
+  ).join('');
+  $('#gameMenu').classList.add('on');
+}
+$('#gmClose').addEventListener('click', () => $('#gameMenu').classList.remove('on'));
+$('#gmGrid').addEventListener('click', e => {
+  const tile = e.target.closest('.gm-tile'); if(!tile) return;
+  const g = GAMES.find(x => x.id === tile.dataset.game);
+  if(!g || !g.ready){ toast('That game is coming soon'); return; }
+  launchGame(g.id);
+});
+function launchGame(gameId){
+  const r = Net.getRoom(); if(!r) return;
+  if(r.players.length < 2){ toast('Add at least one more player first'); return; }
+  // hand the room's players to the game (the host becomes "You" / Team captain)
+  const names = r.players.map(p => p.id === myId ? 'You' : p.name);
+  localStorage.setItem('pg_handoff', JSON.stringify({ game:gameId, players:names, ts:Date.now() }));
+  location.href = 'game.html';
+}
 $('#copyLinkBtn').addEventListener('click', () => { const r = Net.getRoom(); if(r) copyLink(Net.linkFor(r.code)); });
 $('#specLink').addEventListener('click', () => { const r = Net.getRoom(); if(r) copyLink(Net.linkFor(r.code)); });
 $('#specLink').addEventListener('keydown', e => { if(e.key==='Enter'||e.key===' '){ e.preventDefault(); $('#specLink').click(); } });
