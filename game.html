@@ -1,0 +1,467 @@
+<title>Hand Duel Arena</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@600;700;800&display=swap">
+
+<style>
+  /* =========================================================================
+     HAND DUEL ARENA — Phase 2, full stitched loop
+     Versus screen -> duel (hand) with a live bench tap-battle -> reveal ->
+     scoring -> team leaderboard -> next matchup. Ties rematch the same pair.
+     Standalone prototype: you are Team Blue's champion; Red's champion + both
+     benches are simulated. Cohesive dark "arena" theme throughout.
+     ========================================================================= */
+  :root{
+    --ink:#0a1130; --ink-2:#121b44; --ink-3:#1a2656; --line:#28356a;
+    --a:#2f6bff; --a2:#6aa9ff; --b:#ff4d6d; --b2:#ff86a0;
+    --gold:#ffc24d; --gold-ink:#ffce6b; --danger:#ff3b52; --cyan:#39d7e6;
+    --text:#eaf1ff; --muted:#93a4d4;
+    --hsh:rgba(4,10,34,.55);
+  }
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; }
+  body{ background:radial-gradient(1000px 560px at 80% -10%, rgba(47,107,255,.18), transparent 60%),
+                    radial-gradient(900px 520px at -8% 10%, rgba(255,77,109,.15), transparent 58%), var(--ink);
+    color:var(--text); font-family:"Nunito",system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+    min-height:100svh; overflow-x:hidden; -webkit-text-size-adjust:100%; -webkit-user-select:none; user-select:none; }
+  .screen{ display:none; }
+  .screen.on{ display:block; }
+  .wrap{ width:min(480px,100% - 24px); margin-inline:auto; padding:14px 0 34px; display:flex; flex-direction:column; gap:13px; }
+  :focus-visible{ outline:2.5px solid var(--gold); outline-offset:3px; }
+
+  .btn{ -webkit-appearance:none; appearance:none; cursor:pointer; width:100%;
+    display:inline-flex; align-items:center; justify-content:center; gap:9px;
+    font-family:"Fredoka",sans-serif; font-weight:600; font-size:17px; color:#0a1130;
+    background:linear-gradient(150deg,var(--gold),#ffd77e); border:none; border-radius:14px; padding:15px 18px;
+    box-shadow:0 14px 30px -14px rgba(255,194,77,.7); transition:transform .08s, filter .15s, opacity .2s; }
+  .btn:active{ transform:translateY(1px) scale(.995); }
+  .btn:disabled{ opacity:.5; cursor:not-allowed; box-shadow:none; filter:grayscale(.3); }
+  .btn.blue{ background:linear-gradient(150deg,var(--a),var(--a2)); color:#fff; box-shadow:0 14px 30px -14px rgba(47,107,255,.8); }
+  .btn.ghost{ background:transparent; color:var(--muted); border:1.5px solid rgba(255,255,255,.16); box-shadow:none; font-weight:600; }
+
+  /* ============================ VERSUS ================================== */
+  #s-versus{ position:relative; height:100svh; overflow:hidden; }
+  #s-versus.on{ display:block; }
+  .field{ position:absolute; inset:0; }
+  .field .side{ position:absolute; top:0; bottom:0; width:62%; }
+  .field .side.a{ left:0;  background:linear-gradient(135deg,var(--a),#1b3fb0); clip-path:polygon(0 0,100% 0,72% 100%,0 100%); }
+  .field .side.b{ right:0; background:linear-gradient(315deg,var(--b),#b81f3e); clip-path:polygon(28% 0,100% 0,100% 100%,0 100%); }
+  .seam{ position:absolute; top:0; bottom:0; left:50%; width:3px; transform:translateX(-50%) skewX(-16deg); background:linear-gradient(180deg,transparent,rgba(255,255,255,.85),transparent); z-index:3; }
+  .vtop{ position:absolute; top:0; left:0; right:0; z-index:8; text-align:center; padding:22px 16px 0; }
+  .vtop .kick{ font-family:"Fredoka",sans-serif; font-weight:600; letter-spacing:3px; text-transform:uppercase; font-size:13px; color:var(--gold); }
+  .vtop .sub{ font-size:12.5px; color:rgba(255,255,255,.75); margin-top:4px; }
+  .fighters{ position:absolute; inset:0; display:flex; align-items:center; justify-content:space-between; padding:0 16px; z-index:4; }
+  .fighter{ width:44%; display:flex; flex-direction:column; align-items:center; gap:11px; text-align:center; }
+  .fighter .team{ font-family:"Fredoka",sans-serif; font-weight:600; font-size:12px; letter-spacing:2px; text-transform:uppercase; }
+  .avatar{ width:100px; height:100px; border-radius:26px; display:grid; place-items:center; font-family:"Fredoka",sans-serif; font-weight:700; font-size:42px; color:#fff; box-shadow:0 18px 40px -12px rgba(0,0,0,.6), inset 0 3px 0 rgba(255,255,255,.25); }
+  .fighter.a .avatar{ background:linear-gradient(150deg,var(--a2),var(--a)); }
+  .fighter.b .avatar{ background:linear-gradient(150deg,var(--b2),var(--b)); }
+  .fighter .pname{ font-family:"Fredoka",sans-serif; font-weight:700; font-size:24px; line-height:1; }
+  .fighter.a{ animation:inL .6s cubic-bezier(.2,1,.35,1) both; } .fighter.b{ animation:inR .6s cubic-bezier(.2,1,.35,1) both; }
+  @keyframes inL{ from{transform:translateX(-70px) scale(.85);opacity:0} to{transform:none;opacity:1} }
+  @keyframes inR{ from{transform:translateX(70px) scale(.85);opacity:0} to{transform:none;opacity:1} }
+  .vvs{ position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); z-index:6; font-family:"Fredoka",sans-serif; font-weight:700; font-size:72px; color:#fff; text-shadow:0 0 26px rgba(255,255,255,.55); animation:vsPop .55s .18s cubic-bezier(.2,1.5,.4,1) both; }
+  @keyframes vsPop{ 0%{transform:translate(-50%,-50%) scale(0) rotate(-25deg);opacity:0} 70%{transform:translate(-50%,-50%) scale(1.15) rotate(4deg);opacity:1} 100%{transform:translate(-50%,-50%) scale(1)} }
+  .vspark{ position:absolute; top:50%; left:50%; width:280px; height:280px; transform:translate(-50%,-50%); z-index:5; background:radial-gradient(circle,rgba(255,194,77,.5),transparent 62%); animation:vspark .6s .15s ease-out both; }
+  @keyframes vspark{ 0%{opacity:0;transform:translate(-50%,-50%) scale(.3)} 40%{opacity:1} 100%{opacity:0;transform:translate(-50%,-50%) scale(1.6)} }
+  .vbottom{ position:absolute; left:0; right:0; bottom:0; z-index:8; padding:0 18px calc(22px + env(safe-area-inset-bottom)); display:flex; flex-direction:column; align-items:center; gap:10px; }
+  .vbottom .note{ font-size:12px; color:rgba(255,255,255,.8); text-align:center; }
+  .vbottom .btn{ width:min(340px,100%); animation:fade .5s .8s both; }
+  @keyframes fade{ from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:none} }
+
+  /* ============================ DUEL =================================== */
+  .topbar{ display:flex; align-items:center; gap:12px; }
+  .timer{ position:relative; width:66px; height:66px; flex:none; }
+  .timer svg{ width:100%; height:100%; transform:rotate(-90deg); }
+  .timer .track{ fill:none; stroke:var(--line); stroke-width:7; }
+  .timer .prog{ fill:none; stroke:var(--gold); stroke-width:7; stroke-linecap:round; transition:stroke-dashoffset .12s linear, stroke .3s; }
+  .timer .num{ position:absolute; inset:0; display:grid; place-items:center; font-family:"Fredoka",sans-serif; font-weight:700; font-size:23px; font-variant-numeric:tabular-nums; }
+  .timer.warn .prog{ stroke:var(--danger); } .timer.warn .num{ color:var(--danger); }
+  .status{ flex:1; min-width:0; }
+  .status .round{ font-family:"Fredoka",sans-serif; font-weight:600; font-size:12px; letter-spacing:1px; text-transform:uppercase; color:var(--muted); }
+  .status .headline{ font-family:"Fredoka",sans-serif; font-weight:600; font-size:18px; line-height:1.1; margin-top:2px; }
+  .oppchip{ display:inline-flex; align-items:center; gap:7px; margin-top:6px; font-weight:800; font-size:12px; color:var(--muted); background:var(--ink-2); border:1px solid var(--line); border-radius:999px; padding:4px 11px; }
+  .oppchip .dot{ width:8px; height:8px; border-radius:50%; background:var(--muted); animation:blink 1.1s infinite; }
+  .oppchip.locked{ color:var(--b2); } .oppchip.locked .dot{ background:var(--b2); animation:none; }
+  @keyframes blink{ 0%,100%{opacity:1} 50%{opacity:.3} }
+
+  /* live bench tap meter */
+  .tapmeter{ background:var(--ink-2); border:1px solid var(--line); border-radius:14px; padding:10px 12px; }
+  .tapmeter .head{ display:flex; justify-content:space-between; font-size:11.5px; font-weight:800; margin-bottom:7px; }
+  .tapmeter .head .la{ color:var(--a2); } .tapmeter .head .lb{ color:var(--b2); }
+  .tug{ height:12px; border-radius:999px; background:var(--b); overflow:hidden; position:relative; }
+  .tug .fill{ position:absolute; inset:0; width:50%; background:linear-gradient(90deg,var(--a),var(--a2)); transition:width .15s ease; }
+  .tug .mark{ position:absolute; top:-2px; bottom:-2px; left:50%; width:2px; background:rgba(255,255,255,.5); }
+
+  .stage{ background:var(--ink-2); border:1px solid var(--line); border-radius:18px; padding:12px 14px 18px; display:flex; flex-direction:column; align-items:center; }
+  .movelabel{ font-family:"Fredoka",sans-serif; font-weight:700; font-size:28px; letter-spacing:.5px; height:36px; display:flex; align-items:center; transition:color .2s; }
+  .movelabel[data-move=paper]{ color:var(--a2); } .movelabel[data-move=rock]{ color:var(--text); }
+  .movelabel[data-move=scissors]{ color:var(--gold-ink); } .movelabel[data-move=invalid]{ color:var(--danger); }
+  .movesub{ color:var(--muted); font-size:12.5px; height:16px; }
+
+  /* hand — soft-shaded single-fold (vars drive color) */
+  .hand{ position:relative; width:204px; height:242px; margin:8px 0 2px; perspective:660px; touch-action:manipulation;
+    --h1:#8ab7ff; --h2:#2f6bff; --hp1:#5b8cff; --hp2:#2f6bff; }
+  .hand .palm{ position:absolute; left:18px; bottom:0; width:170px; height:128px; z-index:1; border-radius:44px 48px 46px 46px;
+    background:radial-gradient(130% 90% at 32% 18%, var(--h1), transparent 56%), linear-gradient(165deg,var(--hp1),var(--hp2) 80%);
+    box-shadow:inset 0 -14px 24px var(--hsh), inset 0 9px 16px rgba(255,255,255,.20), 0 16px 28px -14px rgba(0,0,0,.5); }
+  .finger{ position:absolute; width:34px; border:none; padding:0; cursor:pointer; z-index:2; border-radius:20px 20px 15px 15px; transform-origin:bottom center;
+    background:linear-gradient(160deg,var(--h1),var(--h2) 82%);
+    box-shadow:inset 0 8px 11px rgba(255,255,255,.30), inset 0 -13px 17px var(--hsh), 0 5px 12px -3px rgba(0,0,0,.45);
+    transition:transform .32s cubic-bezier(.45,0,.22,1.1), filter .2s; }
+  .finger .nail{ position:absolute; top:10px; left:50%; width:14px; height:18px; transform:translateX(-50%); border-radius:50%; background:radial-gradient(circle at 42% 34%, rgba(255,255,255,.7), transparent 68%); pointer-events:none; }
+  .finger.closed{ transform:rotateX(147deg); filter:brightness(.78); }
+  .finger.thumb{ transform:rotate(-40deg); border-radius:18px 18px 16px 16px; z-index:3; }
+  .finger.thumb.closed{ transform:rotate(-6deg) rotateY(22deg) translate(14px,11px) scale(.8); filter:brightness(.85); }
+  .f-index{ left:35px; height:96px; bottom:110px; } .f-middle{ left:75px; height:114px; bottom:110px; }
+  .f-ring{ left:114px; height:100px; bottom:110px; } .f-pinky{ left:153px; height:80px; bottom:110px; width:31px; }
+  .thumb{ left:1px; height:84px; bottom:70px; width:36px; }
+  .hint{ color:var(--muted); font-size:12px; margin-top:6px; text-align:center; }
+
+  details.legend{ background:var(--ink-2); border:1px solid var(--line); border-radius:14px; overflow:hidden; }
+  details.legend summary{ cursor:pointer; list-style:none; padding:11px 14px; font-family:"Fredoka",sans-serif; font-weight:600; font-size:13.5px; }
+  details.legend summary::-webkit-details-marker{ display:none; }
+  .legend-body{ padding:2px 14px 14px; color:var(--muted); font-size:12.5px; line-height:1.7; }
+  .legend-body b{ color:var(--text); }
+
+  /* ======================= REVEAL + SCORING ============================ */
+  .overlay{ position:fixed; inset:0; z-index:30; display:none; background:radial-gradient(120% 90% at 50% 40%, #16205a, #070c24 72%); }
+  .overlay.on{ display:flex; flex-direction:column; }
+  .arena{ flex:1; display:flex; align-items:center; justify-content:center; position:relative; overflow:hidden; padding:16px; }
+  .rf{ display:flex; flex-direction:column; align-items:center; gap:9px; width:45%; transition:opacity .4s, filter .4s; }
+  .rf .who{ font-family:"Fredoka",sans-serif; font-weight:600; font-size:14px; }
+  .rf.you .who{ color:var(--a2); } .rf.opp .who{ color:var(--b2); }
+  .rf .mv{ font-size:11px; font-weight:800; letter-spacing:1.2px; text-transform:uppercase; color:#9fb2e6; }
+  .rf.dim{ opacity:.32; filter:grayscale(.5) brightness(.7); }
+  .rf.win{ filter:drop-shadow(0 0 22px rgba(255,194,77,.75)); }
+  .handbox{ position:relative; width:122px; height:150px; }
+  .rvs{ position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); font-family:"Fredoka",sans-serif; font-weight:700; font-size:30px; color:#fff; opacity:.9; z-index:3; }
+  .stamp{ position:absolute; bottom:6px; left:50%; transform:translateX(-50%) rotate(-8deg); font-family:"Fredoka",sans-serif; font-weight:700; font-size:12px; letter-spacing:1px; color:#fff; background:var(--danger); padding:3px 9px; border-radius:7px; }
+  .rflash{ position:absolute; inset:0; background:#fff; opacity:0; z-index:4; pointer-events:none; }
+  @keyframes fl{ 0%{opacity:0} 10%{opacity:.9} 34%{opacity:0} 100%{opacity:0} }
+  .rf.you{ animation:inL .5s cubic-bezier(.2,1,.4,1) both; } .rf.opp{ animation:inR .5s cubic-bezier(.2,1,.4,1) both; }
+  .rbanner{ text-align:center; padding:6px 20px 22px; }
+  .rbanner .big{ font-family:"Fredoka",sans-serif; font-weight:700; font-size:34px; line-height:1; }
+  .rbanner .big.win{ color:var(--gold); } .rbanner .big.lose{ color:var(--b2); } .rbanner .big.tie{ color:var(--cyan); }
+  .rbanner .reason{ color:#b9c6ee; font-size:13.5px; margin:7px 0 16px; }
+  .rbanner .btn{ max-width:300px; margin-inline:auto; }
+
+  /* scoring card */
+  .scard{ width:min(410px,100% - 28px); margin:auto; background:var(--ink-2); border:1px solid var(--line); border-radius:22px; padding:20px; box-shadow:0 30px 60px -20px rgba(0,0,0,.7); animation:pop .3s cubic-bezier(.2,1.3,.4,1) both; }
+  @keyframes pop{ from{opacity:0;transform:scale(.9)} to{opacity:1;transform:none} }
+  .scard h2{ font-family:"Fredoka",sans-serif; font-weight:700; font-size:21px; margin:0 0 12px; text-align:center; }
+  .sline{ display:flex; align-items:center; justify-content:space-between; gap:10px; padding:11px 12px; border-radius:12px; background:var(--ink); border:1px solid var(--line); margin-bottom:8px; }
+  .sline .l{ font-size:13px; color:var(--muted); } .sline .l b{ color:var(--text); }
+  .sline .pts{ font-family:"Fredoka",sans-serif; font-weight:700; font-size:17px; }
+  .pts.a{ color:var(--a2); } .pts.b{ color:var(--b2); }
+  .board{ margin-top:12px; border-top:1px solid var(--line); padding-top:12px; display:flex; flex-direction:column; gap:6px; }
+  .brow{ display:flex; align-items:center; justify-content:space-between; padding:10px 12px; border-radius:12px; }
+  .brow.a{ background:linear-gradient(90deg,rgba(47,107,255,.22),transparent); } .brow.b{ background:linear-gradient(90deg,rgba(255,77,109,.22),transparent); }
+  .brow .nm{ font-family:"Fredoka",sans-serif; font-weight:600; font-size:15px; } .brow .tot{ font-family:"Fredoka",sans-serif; font-weight:700; font-size:20px; font-variant-numeric:tabular-nums; }
+  .scard .row2{ display:flex; gap:10px; margin-top:14px; }
+  .scard .row2 .btn{ flex:1; }
+
+  /* ============================ FINAL ================================== */
+  #s-final .wrap{ align-items:center; text-align:center; padding-top:60px; }
+  .trophy{ font-family:"Fredoka",sans-serif; font-weight:700; font-size:15px; letter-spacing:2px; text-transform:uppercase; color:var(--gold); }
+  .champ{ font-family:"Fredoka",sans-serif; font-weight:700; font-size:40px; margin:6px 0 2px; }
+  .champ.a{ color:var(--a2); } .champ.b{ color:var(--b2); }
+
+  @media (prefers-reduced-motion:reduce){ *{ animation-duration:.001s !important; } }
+</style>
+
+<!-- ============================ VERSUS ================================= -->
+<section class="screen" id="s-versus">
+  <div class="field"><div class="side a"></div><div class="side b"></div></div>
+  <div class="seam"></div>
+  <div class="vtop"><div class="kick" id="vkick">Matchmaking</div><div class="sub">One champion from each team steps up</div></div>
+  <div class="rflash" id="vflash" style="z-index:7;"></div>
+  <div class="vspark" id="vsparkEl"></div>
+  <div class="fighters">
+    <div class="fighter a" id="vfa"><div class="team" style="color:var(--a2)">Team Blue</div><div class="avatar" id="vavA">Y</div><div class="pname" id="vnA">You</div></div>
+    <div class="fighter b" id="vfb"><div class="team" style="color:var(--b2)">Team Red</div><div class="avatar" id="vavB">R</div><div class="pname" id="vnB">Riley</div></div>
+  </div>
+  <div class="vvs" id="vvsEl">VS</div>
+  <div class="vbottom"><div class="note">Everyone else <b>taps to score</b> for their team while you duel.</div>
+    <button class="btn" id="toDuelBtn">Start the duel</button></div>
+</section>
+
+<!-- ============================ DUEL ================================== -->
+<section class="screen" id="s-duel">
+  <div class="wrap">
+    <div class="topbar">
+      <div class="timer" id="timer"><svg viewBox="0 0 100 100"><circle class="track" cx="50" cy="50" r="42"/><circle class="prog" id="ring" cx="50" cy="50" r="42"/></svg><div class="num" id="tnum">30</div></div>
+      <div class="status">
+        <div class="round" id="roundLbl">Duel · Round 1</div>
+        <div class="headline">Shape your move</div>
+        <span class="oppchip" id="oppchip"><span class="dot"></span> <span id="oppText">Rival is choosing…</span></span>
+      </div>
+    </div>
+
+    <div class="tapmeter">
+      <div class="head"><span class="la">Blue bench <span id="benchA">0</span></span><span class="lb"><span id="benchB">0</span> Red bench</span></div>
+      <div class="tug"><div class="fill" id="fill"></div><div class="mark"></div></div>
+    </div>
+
+    <div class="stage">
+      <div class="movelabel" id="moveLabel" data-move="paper">PAPER</div>
+      <div class="movesub" id="moveSub">All fingers out</div>
+      <div class="hand" id="hand" role="group" aria-label="Your hand — tap fingers to fold them">
+        <button class="finger thumb"  data-f="thumb"  aria-label="Thumb" aria-pressed="false"><span class="nail"></span></button>
+        <button class="finger f-index"  data-f="index"  aria-label="Index finger" aria-pressed="false"><span class="nail"></span></button>
+        <button class="finger f-middle" data-f="middle" aria-label="Middle finger" aria-pressed="false"><span class="nail"></span></button>
+        <button class="finger f-ring"   data-f="ring"   aria-label="Ring finger" aria-pressed="false"><span class="nail"></span></button>
+        <button class="finger f-pinky"  data-f="pinky"  aria-label="Pinky finger" aria-pressed="false"><span class="nail"></span></button>
+        <div class="palm"></div>
+      </div>
+      <p class="hint">Tap fingers to fold them in.</p>
+    </div>
+
+    <button class="btn blue" id="lockBtn" disabled>Lock In</button>
+
+    <details class="legend"><summary>How to make each move</summary>
+      <div class="legend-body"><b>Paper</b> — all fingers out (default) · <b>Rock</b> — all folded in · <b>Scissors</b> — ring + pinky folded in. Anything else is <b>invalid</b> = you lose.</div>
+    </details>
+  </div>
+</section>
+
+<!-- ====================== REVEAL OVERLAY =============================== -->
+<div class="overlay" id="reveal">
+  <div class="arena">
+    <div class="rflash" id="rflash"></div>
+    <div class="rf you" id="rfYou"><div class="handbox" id="handYou"></div><div class="who" id="whoYou">You</div><div class="mv" id="mvYou"></div></div>
+    <div class="rvs">VS</div>
+    <div class="rf opp" id="rfOpp"><div class="handbox" id="handOpp" style="transform:scaleX(-1);"></div><div class="who" id="whoOpp">Rival</div><div class="mv" id="mvOpp"></div></div>
+  </div>
+  <div class="rbanner"><div class="big" id="rbig">—</div><div class="reason" id="rreason"></div><button class="btn" id="revealBtn">See the score</button></div>
+</div>
+
+<!-- ====================== SCORING OVERLAY ============================== -->
+<div class="overlay" id="scoring" style="background:rgba(6,10,32,.82); backdrop-filter:blur(4px);">
+  <div class="scard">
+    <h2 id="sTitle">Round scored</h2>
+    <div class="sline"><div class="l">Tap battle — <b id="tapWinner">—</b> (<span id="tapDetail">0 vs 0</span>)</div><div class="pts" id="tapPts">+0</div></div>
+    <div class="sline"><div class="l">Duel win — <b id="duelWinner">—</b></div><div class="pts" id="duelPts">+500</div></div>
+    <div class="board" id="board"></div>
+    <div class="row2"><button class="btn ghost" id="endBtn">End match</button><button class="btn" id="nextBtn">Next duel</button></div>
+  </div>
+</div>
+
+<!-- ============================ FINAL ================================== -->
+<section class="screen" id="s-final">
+  <div class="wrap">
+    <div class="trophy">Final standings</div>
+    <div class="champ" id="finalChamp">—</div>
+    <div style="color:var(--muted); font-size:14px; margin-bottom:20px;" id="finalSub">wins the match</div>
+    <div class="board" id="finalBoard" style="width:100%; border:none; padding:0;"></div>
+    <button class="btn" id="rematchBtn" style="margin-top:22px; max-width:320px;">Play a new match</button>
+  </div>
+</section>
+
+<script>
+/* =============================================================================
+   Model + helpers
+   ========================================================================== */
+const FINGERS = ['thumb','index','middle','ring','pinky'];
+const MOVE_CLOSED = { paper:[], rock:['thumb','index','middle','ring','pinky'], scissors:['ring','pinky'] };
+function classify(set){ const c = FINGERS.filter(f => set.has(f));
+  for(const [m,s] of Object.entries(MOVE_CLOSED)){ if(c.length===s.length && s.every(f=>set.has(f))) return m; } return 'invalid'; }
+const MOVE_SUB = { paper:'All fingers out', rock:'All fingers folded in', scissors:'Ring + pinky folded in', invalid:'Not a legal move — you lose!' };
+function beats(a,b){ return (a==='rock'&&b==='scissors')||(a==='paper'&&b==='rock')||(a==='scissors'&&b==='paper'); }
+const VERB = { rock:'crushes', paper:'covers', scissors:'cuts' };
+const $ = id => document.getElementById(id);
+function cap(s){ return s.charAt(0).toUpperCase()+s.slice(1); }
+function pick(a){ return a[Math.floor(Math.random()*a.length)]; }
+function teamName(k){ return k==='a' ? 'Team Blue' : 'Team Red'; }
+
+const NAMES_B = ['Riley','Jordan','Mei','Tariq','Cleo','Otis','Kai','Wren'];
+
+/* posed hand for the reveal */
+function poseHand(container, closedSet, color){
+  const stylevar = color==='rose' ? '--h1:#ff9bb0;--h2:#ff5470;--hp1:#ff7a95;--hp2:#ff5470;' : '';
+  const map = { thumb:'thumb', index:'f-index', middle:'f-middle', ring:'f-ring', pinky:'f-pinky' };
+  const fh = FINGERS.map(f => '<span class="finger '+(f==='thumb'?'thumb ':'')+map[f]+(closedSet.has(f)?' closed':'')+'"><span class="nail"></span></span>').join('');
+  container.innerHTML = '<div class="hand" style="position:absolute;left:50%;bottom:0;transform:translateX(-50%) scale(.58);'+stylevar+'">'+fh+'<div class="palm"></div></div>';
+}
+
+/* =============================================================================
+   Match state
+   ========================================================================== */
+const totals = { a:0, b:0 };
+let round = 0;
+let champA = 'You', champB = 'Riley';
+
+/* per-duel */
+const closed = new Set();
+let locked=false, meLocked=false, botLocked=false, botMove='paper', botLockAt=0;
+let startTs=0, raf=0, finished=false, lockMoment=0;
+let benchA=0, benchB=0, benchTimerA=0, benchTimerB=0;
+const ROUND_MS=30000, C=2*Math.PI*42;
+$('ring').style.strokeDasharray = C;
+
+/* =============================================================================
+   Screen switching
+   ========================================================================== */
+function show(id){ document.querySelectorAll('.screen').forEach(s => s.classList.toggle('on', s.id===id)); window.scrollTo(0,0); }
+
+/* =============================================================================
+   VERSUS
+   ========================================================================== */
+function toVersus(){
+  round++;
+  champA = 'You';
+  champB = pick(NAMES_B);
+  $('vnA').textContent = champA; $('vnB').textContent = champB;
+  $('vavA').textContent = 'Y'; $('vavB').textContent = champB.slice(0,2).toUpperCase();
+  show('s-versus');
+  ['vfa','vfb','vvsEl','vflash','vsparkEl'].forEach(id => { const e=$(id); e.style.animation='none'; void e.offsetWidth; e.style.animation=''; });
+}
+$('toDuelBtn').addEventListener('click', startDuel);
+
+/* =============================================================================
+   DUEL + bench tap battle
+   ========================================================================== */
+function myMove(){ return classify(closed); }
+function refreshHand(){
+  const m = myMove();
+  $('moveLabel').textContent = m.toUpperCase(); $('moveLabel').dataset.move = m;
+  $('moveSub').textContent = MOVE_SUB[m];
+  if(!locked){ const b=$('lockBtn'); b.disabled = (m==='invalid')||finished; b.textContent='Lock In'; }
+}
+$('hand').querySelectorAll('.finger').forEach(btn => btn.addEventListener('click', () => {
+  if(locked||finished) return;
+  const f = btn.dataset.f;
+  if(closed.has(f)){ closed.delete(f); btn.classList.remove('closed'); btn.setAttribute('aria-pressed','false'); }
+  else { closed.add(f); btn.classList.add('closed'); btn.setAttribute('aria-pressed','true'); }
+  refreshHand();
+}));
+
+function startDuel(){
+  finished=false; locked=false; meLocked=false; botLocked=false;
+  closed.clear();
+  $('hand').querySelectorAll('.finger').forEach(b => { b.classList.remove('closed'); b.setAttribute('aria-pressed','false'); });
+  $('roundLbl').textContent = 'Duel · Round ' + round;
+  $('oppchip').classList.remove('locked'); $('oppText').textContent = champB + ' is choosing…';
+  $('lockBtn').disabled = true; $('lockBtn').textContent = 'Lock In';
+  benchA=0; benchB=0; renderBench();
+  refreshHand();
+
+  botMove = pick(['rock','paper','scissors']);
+  botLockAt = 4000 + Math.random()*20000;
+  startTs = performance.now();
+  $('timer').classList.remove('warn');
+  show('s-duel');
+  cancelAnimationFrame(raf); tick();
+  runBench();
+}
+
+function renderBench(){
+  $('benchA').textContent = benchA; $('benchB').textContent = benchB;
+  const t = benchA + benchB; $('fill').style.width = (t ? benchA/t*100 : 50) + '%';
+}
+function runBench(){
+  clearTimeout(benchTimerA); clearTimeout(benchTimerB);
+  const stepA = () => { if(finished) return; benchA++; renderBench(); benchTimerA = setTimeout(stepA, 80 + Math.random()*240); };
+  const stepB = () => { if(finished) return; benchB++; renderBench(); benchTimerB = setTimeout(stepB, 80 + Math.random()*240); };
+  benchTimerA = setTimeout(stepA, 200); benchTimerB = setTimeout(stepB, 200);
+}
+
+function tick(){
+  const elapsed = performance.now() - startTs;
+  const remain = Math.max(0, ROUND_MS - elapsed);
+  $('tnum').textContent = Math.ceil(remain/1000);
+  $('ring').style.strokeDashoffset = C * (1 - remain/ROUND_MS);
+  $('timer').classList.toggle('warn', Math.ceil(remain/1000) <= 10);
+  if(!botLocked && elapsed >= botLockAt){ botLocked = true; $('oppchip').classList.add('locked'); $('oppText').textContent = champB + ' locked in'; if(meLocked) return resolve(); }
+  if(remain <= 0) return resolve();
+  raf = requestAnimationFrame(tick);
+}
+$('lockBtn').addEventListener('click', () => {
+  if(locked||finished||myMove()==='invalid') return;
+  locked=true; meLocked=true; $('lockBtn').textContent='Locked ✓'; $('lockBtn').disabled=true;
+  if(botLocked) resolve();
+});
+
+function resolve(){
+  if(finished) return; finished=true;
+  cancelAnimationFrame(raf); clearTimeout(benchTimerA); clearTimeout(benchTimerB);
+  const me = myMove(), meClosed = new Set(closed), botClosed = new Set(MOVE_CLOSED[botMove]);
+  let outcome, reason;
+  if(me==='invalid'){ outcome='lose'; reason='Your move was invalid!'; }
+  else if(me===botMove){ outcome='tie'; reason='Both picked '+me+' — rematch!'; }
+  else if(beats(me,botMove)){ outcome='win'; reason=cap(me)+' '+VERB[me]+' '+botMove+'.'; }
+  else { outcome='lose'; reason=cap(botMove)+' '+VERB[botMove]+' '+me+'.'; }
+  showReveal(me, meClosed, botMove, botClosed, outcome, reason);
+}
+
+/* =============================================================================
+   REVEAL
+   ========================================================================== */
+let pendingOutcome = null;
+function showReveal(meMove, meClosed, botMove, botClosed, outcome, reason){
+  poseHand($('handYou'), meClosed, 'blue'); poseHand($('handOpp'), botClosed, 'rose');
+  $('whoYou').textContent = 'You'; $('whoOpp').textContent = champB;
+  $('mvYou').textContent = meMove; $('mvOpp').textContent = botMove;
+  const y=$('rfYou'), o=$('rfOpp'); y.className='rf you'; o.className='rf opp';
+  document.querySelectorAll('.stamp').forEach(s=>s.remove());
+  if(meMove==='invalid'){ const s=document.createElement('div'); s.className='stamp'; s.textContent='INVALID'; y.appendChild(s); }
+  $('reveal').classList.add('on');
+  const fl=$('rflash'); fl.style.animation='none'; void fl.offsetWidth; fl.style.animation='fl .7s ease-out';
+
+  setTimeout(() => {
+    if(outcome==='win'){ y.classList.add('win'); o.classList.add('dim'); $('rbig').textContent='YOU WIN'; $('rbig').className='big win'; }
+    else if(outcome==='lose'){ o.classList.add('win'); y.classList.add('dim'); $('rbig').textContent='YOU LOSE'; $('rbig').className='big lose'; }
+    else { $('rbig').textContent='TIE'; $('rbig').className='big tie'; }
+    $('rreason').textContent = reason;
+    $('revealBtn').textContent = (outcome==='tie') ? 'Rematch (same champions)' : 'See the score';
+  }, 520);
+  pendingOutcome = outcome;
+}
+$('revealBtn').addEventListener('click', () => {
+  $('reveal').classList.remove('on');
+  if(pendingOutcome==='tie'){ startDuel(); return; }   // ties replay the same pair
+  scoreRound(pendingOutcome);
+});
+
+/* =============================================================================
+   SCORING
+   ========================================================================== */
+function scoreRound(outcome){
+  const duelWin = (outcome==='win') ? 'a' : 'b';   // you are Team Blue
+  const tapDiff = Math.abs(benchA - benchB);
+  const tapWin = benchA===benchB ? null : (benchA>benchB ? 'a' : 'b');
+  if(tapWin) totals[tapWin] += tapDiff;
+  totals[duelWin] += 500;
+
+  $('sTitle').textContent = teamName(duelWin) + ' takes the round!';
+  $('tapWinner').textContent = tapWin ? teamName(tapWin)+' tapped more' : 'Even taps';
+  $('tapDetail').textContent = benchA + ' vs ' + benchB;
+  $('tapPts').textContent = '+' + tapDiff; $('tapPts').className = 'pts ' + (tapWin||'a');
+  $('duelWinner').textContent = teamName(duelWin); $('duelPts').className = 'pts ' + duelWin;
+  renderBoard($('board'));
+  $('scoring').classList.add('on');
+}
+function renderBoard(el){
+  const rows = [['a',totals.a],['b',totals.b]].sort((x,y)=>y[1]-x[1]);
+  el.innerHTML = rows.map(([k,v]) => '<div class="brow '+k+'"><span class="nm">'+teamName(k)+'</span><span class="tot">'+v+'</span></div>').join('');
+}
+$('nextBtn').addEventListener('click', () => { $('scoring').classList.remove('on'); toVersus(); });
+$('endBtn').addEventListener('click', () => { $('scoring').classList.remove('on'); finalStandings(); });
+
+/* =============================================================================
+   FINAL
+   ========================================================================== */
+function finalStandings(){
+  const winner = totals.a===totals.b ? null : (totals.a>totals.b ? 'a' : 'b');
+  $('finalChamp').textContent = winner ? teamName(winner) : "It's a tie!";
+  $('finalChamp').className = 'champ ' + (winner||'a');
+  $('finalSub').textContent = winner ? 'wins the match' : 'dead even';
+  renderBoard($('finalBoard'));
+  show('s-final');
+}
+$('rematchBtn').addEventListener('click', () => { totals.a=0; totals.b=0; round=0; toVersus(); });
+
+/* boot */
+toVersus();
+</script>
