@@ -1,0 +1,179 @@
+<title>Duel Versus Screen</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@600;700;800&display=swap">
+
+<style>
+  /* =========================================================================
+     DUEL VERSUS SCREEN — Phase 2, piece 1
+     Picks a random player from each team and plays a dramatic A-vs-B intro.
+     Standalone prototype with two demo teams so you can watch the animation
+     (and re-roll). This is the "cool versus screen" before a team duel.
+     ========================================================================= */
+  :root{
+    --ink:#0a1130; --ink-2:#121b44;
+    --a:#2f6bff; --a2:#6aa9ff;         /* Team Blue  */
+    --b:#ff4d6d; --b2:#ff86a0;         /* Team Red   */
+    --gold:#ffc24d; --text:#eaf1ff; --muted:#93a4d4;
+  }
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; height:100%; }
+  body{ background:var(--ink); color:var(--text);
+    font-family:"Nunito",system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+    min-height:100svh; overflow:hidden; -webkit-text-size-adjust:100%; }
+
+  .screen{ position:relative; height:100svh; width:100%; overflow:hidden; }
+
+  /* two diagonal team fields */
+  .field{ position:absolute; inset:0; }
+  .field .side{ position:absolute; top:0; bottom:0; width:62%; }
+  .field .side.a{ left:0;  background:linear-gradient(135deg,var(--a) 0%, #1b3fb0 100%);
+    clip-path:polygon(0 0, 100% 0, 72% 100%, 0 100%); }
+  .field .side.b{ right:0; background:linear-gradient(315deg,var(--b) 0%, #b81f3e 100%);
+    clip-path:polygon(28% 0, 100% 0, 100% 100%, 0 100%); }
+  .field .glow{ position:absolute; inset:0; background:radial-gradient(60% 40% at 50% 44%, rgba(255,255,255,.16), transparent 70%); }
+  .seam{ position:absolute; top:0; bottom:0; left:50%; width:3px; transform:translateX(-50%) skewX(-16deg);
+    background:linear-gradient(180deg, transparent, rgba(255,255,255,.85), transparent); filter:blur(.4px); z-index:3; }
+
+  /* fighter cards */
+  .fighters{ position:absolute; inset:0; display:flex; align-items:center; justify-content:space-between; padding:0 18px; z-index:4; }
+  .fighter{ width:44%; display:flex; flex-direction:column; align-items:center; gap:12px; text-align:center; }
+  .fighter .team{ font-family:"Fredoka",sans-serif; font-weight:600; font-size:12px; letter-spacing:2px; text-transform:uppercase; opacity:.9; }
+  .avatar{ width:104px; height:104px; border-radius:26px; display:grid; place-items:center;
+    font-family:"Fredoka",sans-serif; font-weight:700; font-size:44px; color:#fff;
+    box-shadow:0 18px 40px -12px rgba(0,0,0,.6), inset 0 3px 0 rgba(255,255,255,.25); }
+  .fighter.a .avatar{ background:linear-gradient(150deg,var(--a2),var(--a)); }
+  .fighter.b .avatar{ background:linear-gradient(150deg,var(--b2),var(--b)); }
+  .fighter .pname{ font-family:"Fredoka",sans-serif; font-weight:700; font-size:26px; line-height:1; }
+  .fighter .roster{ font-size:11.5px; color:rgba(255,255,255,.72); max-width:150px; line-height:1.4; }
+
+  .fighter.a{ animation:inL .6s cubic-bezier(.2,1,.35,1) both; }
+  .fighter.b{ animation:inR .6s cubic-bezier(.2,1,.35,1) both; }
+  @keyframes inL{ from{transform:translateX(-70px) scale(.85); opacity:0} to{transform:none; opacity:1} }
+  @keyframes inR{ from{transform:translateX(70px)  scale(.85); opacity:0} to{transform:none; opacity:1} }
+
+  /* VS burst */
+  .vs{ position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); z-index:6;
+    font-family:"Fredoka",sans-serif; font-weight:700; font-size:76px; color:#fff;
+    text-shadow:0 0 26px rgba(255,255,255,.55), 0 6px 0 rgba(0,0,0,.2);
+    animation:vsPop .55s .18s cubic-bezier(.2,1.5,.4,1) both; }
+  @keyframes vsPop{ 0%{transform:translate(-50%,-50%) scale(0) rotate(-25deg); opacity:0}
+    70%{transform:translate(-50%,-50%) scale(1.15) rotate(4deg); opacity:1}
+    100%{transform:translate(-50%,-50%) scale(1) rotate(0)} }
+  .spark{ position:absolute; top:50%; left:50%; width:280px; height:280px; transform:translate(-50%,-50%); z-index:5;
+    background:radial-gradient(circle, rgba(255,194,77,.5), transparent 62%); animation:spark .6s .15s ease-out both; }
+  @keyframes spark{ 0%{opacity:0; transform:translate(-50%,-50%) scale(.3)} 40%{opacity:1} 100%{opacity:0; transform:translate(-50%,-50%) scale(1.6)} }
+  .flash{ position:absolute; inset:0; background:#fff; z-index:7; opacity:0; pointer-events:none; animation:fl .5s ease-out both; }
+  @keyframes fl{ 0%{opacity:0} 12%{opacity:.85} 40%{opacity:0} 100%{opacity:0} }
+
+  /* header + footer */
+  .top{ position:absolute; top:0; left:0; right:0; z-index:8; text-align:center; padding:20px 16px 0; }
+  .top .kick{ font-family:"Fredoka",sans-serif; font-weight:600; letter-spacing:3px; text-transform:uppercase; font-size:13px; color:var(--gold);
+    animation:fade .5s .5s both; }
+  .top .sub{ font-size:12.5px; color:var(--muted); margin-top:4px; animation:fade .5s .65s both; }
+  @keyframes fade{ from{opacity:0; transform:translateY(-6px)} to{opacity:1; transform:none} }
+
+  .bottom{ position:absolute; left:0; right:0; bottom:0; z-index:8; padding:0 18px calc(20px + env(safe-area-inset-bottom)); display:flex; flex-direction:column; gap:10px; align-items:center; }
+  .benchnote{ font-size:12px; color:var(--muted); text-align:center; max-width:340px; animation:fade .5s .8s both; }
+  .benchnote b{ color:var(--text); }
+  .btn{ -webkit-appearance:none; appearance:none; cursor:pointer; width:min(340px,100%);
+    display:inline-flex; align-items:center; justify-content:center; gap:9px;
+    font-family:"Fredoka",sans-serif; font-weight:600; font-size:17px; color:#0a1130;
+    background:linear-gradient(150deg,var(--gold),#ffd77e); border:none; border-radius:14px; padding:15px 18px;
+    box-shadow:0 14px 30px -12px rgba(255,194,77,.7); transition:transform .08s, filter .15s;
+    animation:fade .5s .9s both; }
+  .btn:active{ transform:translateY(1px) scale(.995); }
+  .btn.ghost{ background:transparent; color:var(--muted); border:1.5px solid rgba(255,255,255,.18); box-shadow:none; font-weight:600; }
+
+  @media (prefers-reduced-motion:reduce){ *{ animation-duration:.001s !important; } }
+</style>
+
+<div class="screen" id="screen">
+  <div class="field">
+    <div class="side a"></div>
+    <div class="side b"></div>
+    <div class="glow"></div>
+  </div>
+  <div class="seam"></div>
+
+  <div class="top">
+    <div class="kick">Matchmaking</div>
+    <div class="sub">One champion from each team steps up</div>
+  </div>
+
+  <div class="flash" id="flash"></div>
+  <div class="spark" id="spark"></div>
+
+  <div class="fighters" id="fighters">
+    <div class="fighter a" id="fA">
+      <div class="team" id="teamA">Team Blue</div>
+      <div class="avatar" id="avA">A</div>
+      <div class="pname" id="nameA">—</div>
+      <div class="roster" id="rosterA"></div>
+    </div>
+    <div class="fighter b" id="fB">
+      <div class="team" id="teamB">Team Red</div>
+      <div class="avatar" id="avB">B</div>
+      <div class="pname" id="nameB">—</div>
+      <div class="roster" id="rosterB"></div>
+    </div>
+  </div>
+
+  <div class="vs" id="vs">VS</div>
+
+  <div class="bottom">
+    <div class="benchnote">Everyone else <b>taps to score</b> for their team while these two duel.</div>
+    <button class="btn" id="startBtn">Start the duel</button>
+    <button class="btn ghost" id="rerollBtn">Re-roll matchup</button>
+  </div>
+</div>
+
+<script>
+/* Two demo teams. Later these come from the lobby. */
+const TEAMS = {
+  a: { name:'Team Blue', players:['Alex','Sam','Priya','Marcus','Nina','Diego'] },
+  b: { name:'Team Red',  players:['Riley','Jordan','Mei','Tariq','Cleo','Otis'] }
+};
+function initials(n){ const p=n.trim().split(/\s+/); return (p.length>1?p[0][0]+p[1][0]:n.slice(0,2)).toUpperCase(); }
+function pick(arr){ return arr[Math.floor(Math.random()*arr.length)]; }
+
+function fillRoster(el, players, champ){
+  el.innerHTML = players.map(p => p===champ ? '<b style="color:#fff">'+p+'</b>' : p).join(' · ');
+}
+
+function matchmake(){
+  const champA = pick(TEAMS.a.players);
+  const champB = pick(TEAMS.b.players);
+  document.getElementById('teamA').textContent = TEAMS.a.name;
+  document.getElementById('teamB').textContent = TEAMS.b.name;
+  document.getElementById('nameA').textContent = champA;
+  document.getElementById('nameB').textContent = champB;
+  document.getElementById('avA').textContent = initials(champA);
+  document.getElementById('avB').textContent = initials(champB);
+  fillRoster(document.getElementById('rosterA'), TEAMS.a.players, champA);
+  fillRoster(document.getElementById('rosterB'), TEAMS.b.players, champB);
+  replay();
+}
+
+// restart the intro animations
+function replay(){
+  ['fA','fB','vs','flash','spark'].forEach(id => {
+    const el = document.getElementById(id);
+    el.style.animation = 'none'; void el.offsetWidth; el.style.animation = '';
+  });
+  const top = document.querySelector('.top'), bottom = document.querySelector('.bottom');
+  [top.querySelector('.kick'), top.querySelector('.sub'), ...bottom.children].forEach(el => {
+    el.style.animation='none'; void el.offsetWidth; el.style.animation='';
+  });
+}
+
+document.getElementById('rerollBtn').addEventListener('click', matchmake);
+document.getElementById('startBtn').addEventListener('click', () => {
+  const b = document.getElementById('startBtn');
+  b.textContent = 'Next: the duel (coming in the build)…';
+  b.disabled = true; b.style.opacity = .7;
+});
+
+matchmake();
+</script>
