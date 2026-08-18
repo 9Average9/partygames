@@ -1,0 +1,438 @@
+<title>Hand Duel</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Nunito:wght@400;600;700;800&display=swap">
+
+<style>
+  /* =========================================================================
+     HAND DUEL — a spin on rock/paper/scissors (Game Stage 1: the duel core)
+     Fold fingers to shape your move. Paper = all out (default), Rock = all in,
+     Scissors = ring + pinky in. Anything else is invalid = a loss.
+     Standalone prototype: you vs a bot, so the full loop works on one screen.
+     ========================================================================= */
+  :root{
+    --bg:#eef3fb; --surface:#fff; --surface-2:#f2f6fd; --line:#dde6f4;
+    --text:#16213d; --muted:#62729a;
+    --blue:#2f6bff; --blue-2:#5b8cff; --rose:#ff5470; --rose-2:#ff86a0;
+    --gold:#f0a91e; --gold-ink:#a9690a; --danger:#ff3b52; --cyan:#39d7e6;
+    --on-accent:#fff; --shadow:0 16px 40px -22px rgba(30,60,120,.4);
+    --r:18px;
+  }
+  @media (prefers-color-scheme:dark){
+    :root:not([data-theme="light"]){
+      --bg:#0b1533; --surface:#13224b; --surface-2:#1b2e60; --line:#294077;
+      --text:#eaf1ff; --muted:#92a6d8; --blue:#4f9dff; --blue-2:#6aa9ff;
+      --on-accent:#0b1533; --shadow:0 18px 40px -18px rgba(0,0,0,.75);
+    }
+  }
+
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; }
+  body{
+    background:radial-gradient(1000px 560px at 82% -10%, rgba(47,107,255,.10), transparent 60%),
+               radial-gradient(900px 520px at -10% 12%, rgba(255,84,112,.09), transparent 55%), var(--bg);
+    color:var(--text); font-family:"Nunito",system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+    min-height:100vh; -webkit-text-size-adjust:100%; overflow-x:hidden;
+  }
+  .wrap{ width:min(480px,100% - 24px); margin-inline:auto; padding:16px 0 40px; display:flex; flex-direction:column; gap:16px; }
+  :focus-visible{ outline:2.5px solid var(--blue); outline-offset:3px; }
+
+  /* ---- top bar: timer + status ------------------------------------------ */
+  .topbar{ display:flex; align-items:center; gap:14px; }
+  .timer{ position:relative; width:76px; height:76px; flex:none; }
+  .timer svg{ width:100%; height:100%; transform:rotate(-90deg); }
+  .timer .track{ fill:none; stroke:var(--line); stroke-width:7; }
+  .timer .prog{ fill:none; stroke:var(--blue); stroke-width:7; stroke-linecap:round; transition:stroke-dashoffset .12s linear, stroke .3s; }
+  .timer .num{ position:absolute; inset:0; display:grid; place-items:center; font-family:"Fredoka",sans-serif; font-weight:700; font-size:26px; font-variant-numeric:tabular-nums; }
+  .timer.warn .prog{ stroke:var(--danger); }
+  .timer.warn .num{ color:var(--danger); }
+
+  .status{ flex:1; min-width:0; }
+  .status .round{ font-family:"Fredoka",sans-serif; font-weight:600; font-size:13px; letter-spacing:1px; text-transform:uppercase; color:var(--muted); }
+  .status .headline{ font-family:"Fredoka",sans-serif; font-weight:600; font-size:19px; line-height:1.1; margin-top:2px; text-wrap:balance; }
+  .oppchip{ display:inline-flex; align-items:center; gap:7px; margin-top:7px; font-weight:800; font-size:12px; color:var(--muted); background:var(--surface); border:1px solid var(--line); border-radius:999px; padding:4px 11px; }
+  .oppchip .dot{ width:8px; height:8px; border-radius:50%; background:var(--muted); }
+  .oppchip.locked{ color:var(--rose); }
+  .oppchip.locked .dot{ background:var(--rose); animation:none; }
+  .oppchip .dot{ animation:blink 1.1s infinite; }
+  @keyframes blink{ 0%,100%{opacity:1} 50%{opacity:.3} }
+
+  /* ---- the hand stage ---------------------------------------------------- */
+  .stage{ background:var(--surface); border:1px solid var(--line); border-radius:var(--r); box-shadow:var(--shadow); padding:14px 14px 20px; display:flex; flex-direction:column; align-items:center; }
+  .movelabel{ font-family:"Fredoka",sans-serif; font-weight:700; font-size:30px; letter-spacing:.5px; height:38px; display:flex; align-items:center; gap:9px; transition:color .2s; }
+  .movelabel .pipe{ font-size:14px; font-weight:800; letter-spacing:1.5px; text-transform:uppercase; font-family:"Nunito"; padding:3px 9px; border-radius:8px; }
+  .movelabel[data-move=paper]{ color:var(--blue); }
+  .movelabel[data-move=rock]{ color:var(--text); }
+  .movelabel[data-move=scissors]{ color:var(--gold-ink); }
+  .movelabel[data-move=invalid]{ color:var(--danger); }
+  .movesub{ color:var(--muted); font-size:12.5px; margin-top:-2px; height:16px; }
+
+  /* hand — soft-shaded vector, fingers fold at the knuckle in 3D.
+     Color comes from CSS vars so a second hand can be reskinned (rose). */
+  .hand{ position:relative; width:214px; height:252px; margin:8px 0 2px; perspective:660px; touch-action:manipulation;
+    --h1:#8ab7ff; --h2:#2f6bff; --hp1:#5b8cff; --hp2:#2f6bff; --hsh:rgba(12,32,92,.32); }
+  .hand .palm{ position:absolute; left:19px; bottom:0; width:176px; height:134px; z-index:1;
+    border-radius:46px 50px 48px 48px;
+    background:radial-gradient(130% 90% at 32% 18%, var(--h1), transparent 56%), linear-gradient(165deg,var(--hp1),var(--hp2) 80%);
+    box-shadow:inset 0 -14px 24px var(--hsh), inset 0 9px 16px rgba(255,255,255,.22), 0 16px 28px -14px rgba(18,38,88,.5); }
+  .finger{ position:absolute; width:35px; border:none; padding:0; cursor:pointer; z-index:2;
+    border-radius:21px 21px 15px 15px; transform-origin:bottom center;
+    background:linear-gradient(160deg,var(--h1),var(--h2) 82%);
+    box-shadow:inset 0 8px 11px rgba(255,255,255,.32), inset 0 -13px 17px var(--hsh), 0 5px 12px -3px rgba(18,38,88,.4);
+    transition:transform .32s cubic-bezier(.45,0,.22,1.1), filter .2s; }
+  .finger .nail{ position:absolute; top:11px; left:50%; width:15px; height:19px; transform:translateX(-50%);
+    border-radius:50%; background:radial-gradient(circle at 42% 34%, rgba(255,255,255,.72), rgba(255,255,255,0) 68%); pointer-events:none; }
+  .finger:hover{ filter:brightness(1.05); }
+  .finger.closed{ transform:rotateX(147deg); filter:brightness(.78); }
+  .finger.thumb{ transform:rotate(-40deg); border-radius:19px 19px 16px 16px; z-index:3; }
+  .finger.thumb.closed{ transform:rotate(-6deg) rotateY(22deg) translate(15px,12px) scale(.8); filter:brightness(.85); }
+  /* per-finger placement (knuckles tucked into the palm top) */
+  .f-index { left:36px;  height:100px; bottom:114px; }
+  .f-middle{ left:77px;  height:118px; bottom:114px; }
+  .f-ring  { left:118px; height:104px; bottom:114px; }
+  .f-pinky { left:158px; height:82px;  bottom:114px; width:32px; }
+  .thumb   { left:1px;   height:86px;  bottom:72px; width:37px; }
+
+  .hint{ color:var(--muted); font-size:12px; margin-top:6px; text-align:center; }
+
+  /* ---- controls ---------------------------------------------------------- */
+  .btn{ -webkit-appearance:none; appearance:none; cursor:pointer; width:100%;
+    display:inline-flex; align-items:center; justify-content:center; gap:9px;
+    font-family:"Fredoka",sans-serif; font-weight:600; font-size:17px; color:var(--on-accent);
+    background:linear-gradient(150deg,var(--blue),var(--blue-2)); border:none; border-radius:14px; padding:15px 18px;
+    box-shadow:0 12px 24px -12px rgba(47,107,255,.9); transition:transform .08s, filter .15s, opacity .2s; }
+  .btn:hover{ filter:brightness(1.05); }
+  .btn:active{ transform:translateY(1px) scale(.995); }
+  .btn:disabled{ opacity:.45; cursor:not-allowed; box-shadow:none; filter:grayscale(.3); }
+  .btn.gold{ background:linear-gradient(150deg,var(--gold),#ffcf5c); color:#3a2600; box-shadow:0 12px 24px -12px rgba(240,169,30,.9); }
+  .btn.ghost{ background:transparent; color:var(--muted); box-shadow:none; border:1.5px solid var(--line); font-weight:600; }
+  .btn.locked{ background:var(--surface-2); color:var(--blue); box-shadow:none; border:1.5px solid var(--blue); }
+
+  /* ---- legend ------------------------------------------------------------ */
+  .legend{ background:var(--surface); border:1px solid var(--line); border-radius:var(--r); box-shadow:var(--shadow); overflow:hidden; }
+  .legend summary{ cursor:pointer; list-style:none; padding:13px 16px; font-family:"Fredoka",sans-serif; font-weight:600; font-size:14px; display:flex; align-items:center; justify-content:space-between; }
+  .legend summary::-webkit-details-marker{ display:none; }
+  .legend summary .chev{ transition:transform .2s; color:var(--muted); }
+  .legend[open] summary .chev{ transform:rotate(180deg); }
+  .legend-body{ display:grid; grid-template-columns:repeat(3,1fr); gap:10px; padding:4px 14px 16px; }
+  .lg{ text-align:center; background:var(--surface-2); border:1px solid var(--line); border-radius:12px; padding:12px 6px 10px; }
+  .lg .mini{ height:70px; display:flex; align-items:flex-end; justify-content:center; }
+  .lg .nm{ font-family:"Fredoka",sans-serif; font-weight:600; font-size:14px; margin-top:6px; }
+  .lg .ds{ font-size:11px; color:var(--muted); line-height:1.3; }
+
+  /* posed-hand windows (legend + reveal) — clip the scaled hand cleanly */
+  .handbox{ position:relative; width:130px; height:150px; }
+  .lg .mini{ position:relative; width:100%; height:74px; overflow:hidden; }
+
+  /* ---- reveal overlay (dark arena) -------------------------------------- */
+  #reveal{ position:fixed; inset:0; z-index:50; display:none; background:radial-gradient(120% 90% at 50% 40%, #16205a, #0a1130 70%); color:#eaf1ff; }
+  #reveal.show{ display:flex; flex-direction:column; }
+  .arena{ flex:1; display:flex; align-items:center; justify-content:center; gap:6px; position:relative; overflow:hidden; padding:20px; }
+  .fighter{ display:flex; flex-direction:column; align-items:center; gap:10px; width:46%; transition:opacity .4s, filter .4s; }
+  .fighter .who{ font-family:"Fredoka",sans-serif; font-weight:600; font-size:15px; }
+  .fighter .mv{ font-size:11px; font-weight:800; letter-spacing:1.2px; text-transform:uppercase; color:#9fb2e6; }
+  .fighter.you .who{ color:var(--blue-2); }
+  .fighter.opp .who{ color:var(--rose-2); }
+  .fighter.dim{ opacity:.32; filter:grayscale(.5) brightness(.7); }
+  .fighter.win{ filter:drop-shadow(0 0 22px rgba(240,169,30,.7)); }
+  .vs{ position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); font-family:"Fredoka",sans-serif; font-weight:700; font-size:34px; color:#fff; opacity:.9; text-shadow:0 0 20px rgba(57,215,230,.8); z-index:3; }
+  .invalid-stamp{ position:absolute; bottom:8px; left:50%; transform:translateX(-50%) rotate(-8deg); font-family:"Fredoka",sans-serif; font-weight:700; font-size:13px; letter-spacing:1px; color:#fff; background:var(--danger); padding:3px 10px; border-radius:7px; box-shadow:0 0 16px rgba(255,59,82,.7); }
+
+  .bolt{ position:absolute; top:0; left:50%; width:60px; height:100%; transform:translateX(-50%); z-index:2; opacity:0; }
+  .bolt path{ stroke:var(--cyan); stroke-width:5; fill:none; filter:drop-shadow(0 0 10px var(--cyan)); stroke-linecap:round; stroke-linejoin:round; }
+  .flash{ position:absolute; inset:0; background:#fff; opacity:0; z-index:4; pointer-events:none; }
+  @keyframes flashfx{ 0%{opacity:0} 8%{opacity:.9} 30%{opacity:0} 100%{opacity:0} }
+  @keyframes boltfx{ 0%{opacity:0} 10%{opacity:1} 22%{opacity:.2} 34%{opacity:1} 55%{opacity:0} 100%{opacity:0} }
+  @keyframes slideL{ from{transform:translateX(-60px); opacity:0} to{transform:none; opacity:1} }
+  @keyframes slideR{ from{transform:translateX(60px); opacity:0} to{transform:none; opacity:1} }
+  .fighter.you{ animation:slideL .5s cubic-bezier(.2,1,.4,1) both; }
+  .fighter.opp{ animation:slideR .5s cubic-bezier(.2,1,.4,1) both; }
+
+  .result{ padding:18px 20px 30px; text-align:center; background:linear-gradient(180deg,transparent,rgba(0,0,0,.25)); }
+  .result .banner{ font-family:"Fredoka",sans-serif; font-weight:700; font-size:40px; line-height:1; letter-spacing:.5px; }
+  .result .banner.win{ color:var(--gold); text-shadow:0 0 24px rgba(240,169,30,.6); }
+  .result .banner.lose{ color:var(--rose-2); }
+  .result .banner.tie{ color:var(--cyan); }
+  .result .reason{ color:#b9c6ee; font-size:14px; margin:8px 0 18px; min-height:20px; }
+  .result .btn{ max-width:280px; margin-inline:auto; }
+
+  @media (prefers-reduced-motion:reduce){ *{ animation:none !important; transition:none !important; } }
+</style>
+
+<div class="wrap">
+
+  <div class="topbar">
+    <div class="timer" id="timer">
+      <svg viewBox="0 0 100 100"><circle class="track" cx="50" cy="50" r="42"/><circle class="prog" id="ring" cx="50" cy="50" r="42"/></svg>
+      <div class="num" id="timerNum">30</div>
+    </div>
+    <div class="status">
+      <div class="round">Duel · Round 1</div>
+      <div class="headline" id="headline">Shape your move</div>
+      <span class="oppchip" id="oppchip"><span class="dot"></span> <span id="oppText">Rival is choosing…</span></span>
+    </div>
+  </div>
+
+  <div class="stage">
+    <div class="movelabel" id="moveLabel" data-move="paper">PAPER</div>
+    <div class="movesub" id="moveSub">All fingers out</div>
+    <div class="hand" id="hand" role="group" aria-label="Your hand — tap fingers to fold them">
+      <button class="finger thumb"  data-f="thumb"  aria-label="Thumb" aria-pressed="false"><span class="nail"></span></button>
+      <button class="finger f-index"  data-f="index"  aria-label="Index finger" aria-pressed="false"><span class="nail"></span></button>
+      <button class="finger f-middle" data-f="middle" aria-label="Middle finger" aria-pressed="false"><span class="nail"></span></button>
+      <button class="finger f-ring"   data-f="ring"   aria-label="Ring finger" aria-pressed="false"><span class="nail"></span></button>
+      <button class="finger f-pinky"  data-f="pinky"  aria-label="Pinky finger" aria-pressed="false"><span class="nail"></span></button>
+      <div class="palm"></div>
+    </div>
+    <p class="hint">Tap fingers to fold them in.</p>
+  </div>
+
+  <button class="btn" id="lockBtn" disabled>Lock In</button>
+
+  <details class="legend">
+    <summary>How to make each move <span class="chev" id="chev"></span></summary>
+    <div class="legend-body" id="legendBody"></div>
+  </details>
+
+  <p class="hint" style="opacity:.8;">Prototype — you vs a bot. Team matchmaking, the versus screen &amp; the tap-battle come next.</p>
+</div>
+
+<!-- ===================== REVEAL OVERLAY ================================= -->
+<div id="reveal">
+  <div class="arena" id="arena">
+    <div class="flash" id="flash"></div>
+    <svg class="bolt" id="bolt" viewBox="0 0 60 300" preserveAspectRatio="none"><path d="M34 0 L20 120 L38 130 L14 300"/></svg>
+    <div class="fighter you" id="fYou"><div class="handbox" id="handYou"></div><div class="who">You</div><div class="mv" id="mvYou"></div></div>
+    <div class="vs">VS</div>
+    <div class="fighter opp" id="fOpp"><div class="handbox" id="handOpp" style="transform:scaleX(-1);"></div><div class="who">Rival</div><div class="mv" id="mvOpp"></div></div>
+  </div>
+  <div class="result">
+    <div class="banner" id="banner">—</div>
+    <div class="reason" id="reason"></div>
+    <button class="btn gold" id="againBtn">Play again</button>
+  </div>
+</div>
+
+<script>
+/* =============================================================================
+   Gesture model
+   ========================================================================== */
+const FINGERS = ['thumb','index','middle','ring','pinky'];
+// each move = the SET of folded (closed) fingers
+const MOVE_CLOSED = {
+  paper:    [],
+  rock:     ['thumb','index','middle','ring','pinky'],
+  scissors: ['ring','pinky']
+};
+function classify(closedSet){
+  const closed = FINGERS.filter(f => closedSet.has(f));
+  for(const [move, set] of Object.entries(MOVE_CLOSED)){
+    if(closed.length === set.length && set.every(f => closedSet.has(f))) return move;
+  }
+  return 'invalid';
+}
+const MOVE_SUB = {
+  paper:'All fingers out', rock:'All fingers folded in',
+  scissors:'Ring + pinky folded in', invalid:'Not a legal move — you lose!'
+};
+// who beats whom (valid moves only)
+function beats(a,b){ return (a==='rock'&&b==='scissors')||(a==='paper'&&b==='rock')||(a==='scissors'&&b==='paper'); }
+const VERB = { rock:'crushes', paper:'covers', scissors:'cuts' };
+
+/* =============================================================================
+   Hand builder — used for the interactive hand AND static posed hands.
+   ========================================================================== */
+function poseHand(container, closedSet, color, scale){
+  // builds a static, folded copy of the geometric hand, scaled and centered
+  const s = scale || 0.6;
+  // reskin to rose for the opponent; blue is the CSS default on .hand
+  const stylevar = color==='rose'
+    ? '--h1:#ff9bb0;--h2:#ff5470;--hp1:#ff7a95;--hp2:#ff5470;--hsh:rgba(120,20,45,.32);' : '';
+  const map = { thumb:'thumb', index:'f-index', middle:'f-middle', ring:'f-ring', pinky:'f-pinky' };
+  const fingerHtml = FINGERS.map(f =>
+    '<span class="finger '+(f==='thumb'?'thumb ':'')+map[f]+(closedSet.has(f)?' closed':'')+
+    '"><span class="nail"></span></span>'
+  ).join('');
+  container.innerHTML =
+    '<div class="hand" style="position:absolute; left:50%; bottom:0; '+
+    'transform:translateX(-50%) scale('+s+'); '+stylevar+'">'+
+    fingerHtml+'<div class="palm"></div></div>';
+}
+
+/* =============================================================================
+   Interactive hand state
+   ========================================================================== */
+const hand = document.getElementById('hand');
+const closed = new Set();          // currently folded fingers
+let locked = false;
+
+function myMove(){ return classify(closed); }
+
+function refreshHand(){
+  const move = myMove();
+  const label = document.getElementById('moveLabel');
+  label.textContent = move.toUpperCase();
+  label.dataset.move = move;
+  document.getElementById('moveSub').textContent = MOVE_SUB[move];
+  // lock button available only for a valid move, before locking, before time up
+  const lockBtn = document.getElementById('lockBtn');
+  if(!locked){
+    lockBtn.disabled = (move === 'invalid') || finished;
+    lockBtn.textContent = 'Lock In';
+    lockBtn.classList.remove('locked');
+  }
+}
+
+hand.querySelectorAll('.finger').forEach(btn => {
+  btn.addEventListener('click', () => {
+    if(locked || finished) return;
+    const f = btn.dataset.f;
+    if(closed.has(f)){ closed.delete(f); btn.classList.remove('closed'); btn.setAttribute('aria-pressed','false'); }
+    else { closed.add(f); btn.classList.add('closed'); btn.setAttribute('aria-pressed','true'); }
+    refreshHand();
+  });
+});
+
+/* =============================================================================
+   Round flow: timer + bot + resolve
+   ========================================================================== */
+const ROUND_MS = 30000;
+const C = 2 * Math.PI * 42;            // ring circumference
+document.getElementById('ring').style.strokeDasharray = C;
+
+let round = 0, startTs = 0, raf = 0, finished = false;
+let meLocked = false, botLocked = false, botMove = 'paper', botLockAt = 0;
+
+function startRound(){
+  round++;
+  finished = false; locked = false; meLocked = false; botLocked = false;
+  closed.clear();
+  hand.querySelectorAll('.finger').forEach(b => { b.classList.remove('closed'); b.setAttribute('aria-pressed','false'); });
+  document.querySelector('.round').textContent = 'Duel · Round ' + round;
+  document.getElementById('headline').textContent = 'Shape your move';
+  const chip = document.getElementById('oppchip');
+  chip.classList.remove('locked'); document.getElementById('oppText').textContent = 'Rival is choosing…';
+  document.getElementById('lockBtn').className = 'btn';
+  refreshHand();
+
+  // bot decides a valid move + a moment to lock in
+  botMove = ['rock','paper','scissors'][Math.floor(Math.random()*3)];
+  botLockAt = 3000 + Math.random()*18000;
+
+  startTs = performance.now();
+  document.getElementById('timer').classList.remove('warn');
+  cancelAnimationFrame(raf);
+  tick();
+}
+
+function tick(){
+  const elapsed = performance.now() - startTs;
+  const remain = Math.max(0, ROUND_MS - elapsed);
+  const secs = Math.ceil(remain/1000);
+  document.getElementById('timerNum').textContent = secs;
+  document.getElementById('ring').style.strokeDashoffset = C * (1 - remain/ROUND_MS);
+  document.getElementById('timer').classList.toggle('warn', secs <= 10);
+
+  // bot locks in at its chosen time
+  if(!botLocked && elapsed >= botLockAt){
+    botLocked = true;
+    const chip = document.getElementById('oppchip');
+    chip.classList.add('locked'); document.getElementById('oppText').textContent = 'Rival locked in';
+    if(meLocked) return resolve();
+  }
+  if(remain <= 0) return resolve();
+  raf = requestAnimationFrame(tick);
+}
+
+document.getElementById('lockBtn').addEventListener('click', () => {
+  if(locked || finished || myMove()==='invalid') return;
+  locked = true; meLocked = true;
+  const b = document.getElementById('lockBtn');
+  b.classList.add('locked'); b.textContent = 'Locked ✓'; b.disabled = true;
+  document.getElementById('headline').textContent = 'Locked — waiting on your rival…';
+  if(botLocked) resolve();
+});
+
+function resolve(){
+  if(finished) return;
+  finished = true; cancelAnimationFrame(raf);
+
+  const meMove = myMove();
+  const meClosed = new Set(closed);
+  const botClosed = new Set(MOVE_CLOSED[botMove]);
+
+  const meValid = meMove !== 'invalid', botValid = true; // bot always valid
+  let outcome, reason;
+  if(!meValid && !botValid){ outcome='tie'; reason='Both moves invalid — rematch!'; }
+  else if(!meValid){ outcome='lose'; reason='Your move was invalid!'; }
+  else if(!botValid){ outcome='win'; reason='Rival made an invalid move!'; }
+  else if(meMove === botMove){ outcome='tie'; reason='Both picked '+meMove+' — rematch!'; }
+  else if(beats(meMove, botMove)){ outcome='win'; reason=cap(meMove)+' '+VERB[meMove]+' '+botMove+'.'; }
+  else { outcome='lose'; reason=cap(botMove)+' '+VERB[botMove]+' '+meMove+'.'; }
+
+  showReveal(meMove, meClosed, botMove, botClosed, outcome, reason);
+}
+function cap(s){ return s.charAt(0).toUpperCase()+s.slice(1); }
+
+/* =============================================================================
+   Reveal
+   ========================================================================== */
+function showReveal(meMove, meClosed, botMove, botClosed, outcome, reason){
+  poseHand(document.getElementById('handYou'), meClosed, 'blue');
+  poseHand(document.getElementById('handOpp'), botClosed, 'rose');
+  document.getElementById('mvYou').textContent = meMove;
+  document.getElementById('mvOpp').textContent = botMove;
+
+  const fYou = document.getElementById('fYou'), fOpp = document.getElementById('fOpp');
+  fYou.className = 'fighter you'; fOpp.className = 'fighter opp';
+  // clear any prior stamps
+  document.querySelectorAll('.invalid-stamp').forEach(s => s.remove());
+  if(meMove==='invalid') fYou.appendChild(stamp());
+  if(botMove==='invalid') fOpp.appendChild(stamp());
+
+  const banner = document.getElementById('banner');
+  const reveal = document.getElementById('reveal');
+  reveal.classList.add('show');
+
+  // trigger lightning + flash
+  const flash = document.getElementById('flash'), bolt = document.getElementById('bolt');
+  flash.style.animation='none'; bolt.style.animation='none'; void flash.offsetWidth;
+  flash.style.animation='flashfx .7s ease-out'; bolt.style.animation='boltfx .7s ease-out';
+
+  // settle winner/loser after the clash
+  setTimeout(() => {
+    if(outcome==='win'){ fYou.classList.add('win'); fOpp.classList.add('dim'); banner.textContent='YOU WIN'; banner.className='banner win'; }
+    else if(outcome==='lose'){ fOpp.classList.add('win'); fYou.classList.add('dim'); banner.textContent='YOU LOSE'; banner.className='banner lose'; }
+    else { banner.textContent='TIE'; banner.className='banner tie'; }
+    document.getElementById('reason').textContent = reason;
+    const again = document.getElementById('againBtn');
+    again.textContent = (outcome==='tie') ? 'Rematch' : 'Play again';
+  }, 520);
+}
+function stamp(){ const s=document.createElement('div'); s.className='invalid-stamp'; s.textContent='INVALID'; return s; }
+
+document.getElementById('againBtn').addEventListener('click', () => {
+  document.getElementById('reveal').classList.remove('show');
+  startRound();
+});
+
+/* =============================================================================
+   Legend + boot
+   ========================================================================== */
+(function buildLegend(){
+  const body = document.getElementById('legendBody');
+  [['paper','Paper'],['rock','Rock'],['scissors','Scissors']].forEach(([m,nm]) => {
+    const cell = document.createElement('div'); cell.className='lg';
+    const mini = document.createElement('div'); mini.className='mini';
+    poseHand(mini, new Set(MOVE_CLOSED[m]), 'blue', 0.3);
+    cell.appendChild(mini);
+    cell.insertAdjacentHTML('beforeend', '<div class="nm">'+nm+'</div><div class="ds">'+MOVE_SUB[m]+'</div>');
+    body.appendChild(cell);
+  });
+  document.getElementById('chev').innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>';
+})();
+
+refreshHand();
+startRound();
+</script>
