@@ -6,29 +6,35 @@
 
 <style>
   /* =========================================================================
-     HAND DUEL ARENA — Phase 2, full stitched loop
-     Versus screen -> duel (hand) with a live bench tap-battle -> reveal ->
-     scoring -> team leaderboard -> next matchup. Ties rematch the same pair.
-     Standalone prototype: you are Team Blue's champion; Red's champion + both
-     benches are simulated. Cohesive dark "arena" theme throughout.
+     HAND DUEL ARENA — full team game
+     Setup (host picks match length + adds players) -> captains name & colour
+     their teams -> matchmaking versus screen -> 3·2·1 countdown -> hand duel
+     with a live bench tap-battle -> reveal -> scoring -> repeat until everyone
+     has dueled N times -> sudden death on a tie -> final standings + party pts.
+     Team colours are chosen by captains and drive the whole UI via --a / --b.
+     Standalone test build: you + bots, so you can play it all on one screen.
      ========================================================================= */
   :root{
     --ink:#0a1130; --ink-2:#121b44; --ink-3:#1a2656; --line:#28356a;
-    --a:#2f6bff; --a2:#6aa9ff; --b:#ff4d6d; --b2:#ff86a0;
+    --a:#2f6bff; --a2:#6aa9ff; --b:#ff4d6d; --b2:#ff86a0;      /* set per team */
     --gold:#ffc24d; --gold-ink:#ffce6b; --danger:#ff3b52; --cyan:#39d7e6;
-    --text:#eaf1ff; --muted:#93a4d4;
-    --hsh:rgba(4,10,34,.55);
+    --text:#eaf1ff; --muted:#93a4d4; --hsh:rgba(4,10,34,.55);
   }
   *{ box-sizing:border-box; }
   html,body{ margin:0; }
-  body{ background:radial-gradient(1000px 560px at 80% -10%, rgba(47,107,255,.18), transparent 60%),
-                    radial-gradient(900px 520px at -8% 10%, rgba(255,77,109,.15), transparent 58%), var(--ink);
+  body{ background:radial-gradient(1000px 560px at 80% -10%, rgba(47,107,255,.16), transparent 60%),
+                    radial-gradient(900px 520px at -8% 10%, rgba(255,77,109,.13), transparent 58%), var(--ink);
     color:var(--text); font-family:"Nunito",system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
     min-height:100svh; overflow-x:hidden; -webkit-text-size-adjust:100%; -webkit-user-select:none; user-select:none; }
-  .screen{ display:none; }
-  .screen.on{ display:block; }
-  .wrap{ width:min(480px,100% - 24px); margin-inline:auto; padding:14px 0 34px; display:flex; flex-direction:column; gap:13px; }
+  .screen{ display:none; } .screen.on{ display:block; }
+  .wrap{ width:min(480px,100% - 24px); margin-inline:auto; padding:16px 0 40px; display:flex; flex-direction:column; gap:14px; }
   :focus-visible{ outline:2.5px solid var(--gold); outline-offset:3px; }
+
+  h1.title{ font-family:"Fredoka",sans-serif; font-weight:700; font-size:26px; margin:6px 0 0; text-align:center; }
+  .lede{ text-align:center; color:var(--muted); font-size:13px; margin:2px 0 6px; }
+
+  .panel{ background:var(--ink-2); border:1px solid var(--line); border-radius:16px; padding:16px; }
+  .panel h2{ font-family:"Fredoka",sans-serif; font-weight:600; font-size:15px; margin:0 0 10px; }
 
   .btn{ -webkit-appearance:none; appearance:none; cursor:pointer; width:100%;
     display:inline-flex; align-items:center; justify-content:center; gap:9px;
@@ -36,27 +42,57 @@
     background:linear-gradient(150deg,var(--gold),#ffd77e); border:none; border-radius:14px; padding:15px 18px;
     box-shadow:0 14px 30px -14px rgba(255,194,77,.7); transition:transform .08s, filter .15s, opacity .2s; }
   .btn:active{ transform:translateY(1px) scale(.995); }
-  .btn:disabled{ opacity:.5; cursor:not-allowed; box-shadow:none; filter:grayscale(.3); }
-  .btn.blue{ background:linear-gradient(150deg,var(--a),var(--a2)); color:#fff; box-shadow:0 14px 30px -14px rgba(47,107,255,.8); }
+  .btn:disabled{ opacity:.45; cursor:not-allowed; box-shadow:none; filter:grayscale(.3); }
+  .btn.blue{ background:linear-gradient(150deg,var(--a),var(--a2)); color:#fff; box-shadow:0 14px 30px -14px rgba(47,107,255,.55); }
   .btn.ghost{ background:transparent; color:var(--muted); border:1.5px solid rgba(255,255,255,.16); box-shadow:none; font-weight:600; }
+  .btn.sm{ font-size:14px; padding:11px 14px; width:auto; }
 
-  /* ============================ VERSUS ================================== */
+  /* ---- setup ---- */
+  .steprow{ display:flex; align-items:center; justify-content:space-between; gap:12px; }
+  .stepper{ display:flex; align-items:center; gap:12px; }
+  .stepper button{ width:40px; height:40px; border-radius:11px; border:1px solid var(--line); background:var(--ink-3); color:var(--text); font-size:22px; font-family:"Fredoka",sans-serif; cursor:pointer; }
+  .stepper input{ width:64px; text-align:center; font-family:"Fredoka",sans-serif; font-weight:700; font-size:24px; color:var(--text); background:var(--ink); border:1px solid var(--line); border-radius:11px; padding:8px 4px; }
+  .muted{ color:var(--muted); font-size:12.5px; }
+  .plist{ display:flex; flex-wrap:wrap; gap:8px; margin-top:4px; }
+  .chip{ display:inline-flex; align-items:center; gap:7px; background:var(--ink-3); border:1px solid var(--line); border-radius:999px; padding:6px 12px; font-weight:800; font-size:13px; }
+  .chip .x{ cursor:pointer; color:var(--muted); font-weight:900; }
+  .chip.you{ border-color:var(--gold); color:var(--gold-ink); }
+
+  /* ---- captain / colour picker ---- */
+  .field{ margin-bottom:14px; }
+  .field label{ display:block; font-weight:800; font-size:11px; letter-spacing:1px; text-transform:uppercase; color:var(--muted); margin:0 0 6px 2px; }
+  input[type=text]{ width:100%; font-family:inherit; font-weight:700; font-size:17px; color:var(--text); background:var(--ink); border:1.5px solid var(--line); border-radius:12px; padding:13px 14px; outline:none; }
+  input[type=text]:focus{ border-color:var(--gold); }
+  .swatches{ display:grid; grid-template-columns:repeat(4,1fr); gap:10px; }
+  .sw{ position:relative; aspect-ratio:1; border-radius:14px; cursor:pointer; border:3px solid transparent; }
+  .sw[aria-disabled=true]{ opacity:.28; cursor:not-allowed; }
+  .sw.sel{ border-color:#fff; box-shadow:0 0 0 3px rgba(255,255,255,.25); }
+  .sw .taken{ position:absolute; inset:0; display:grid; place-items:center; font-size:10px; font-weight:900; color:#fff; text-shadow:0 1px 2px rgba(0,0,0,.5); }
+  .err{ color:var(--danger); font-size:12.5px; min-height:16px; font-weight:700; }
+
+  /* ---- teams-ready ---- */
+  .teamcard{ display:flex; align-items:center; gap:14px; border-radius:16px; padding:14px 16px; margin-bottom:10px; }
+  .teamcard .tdot{ width:46px; height:46px; border-radius:13px; flex:none; box-shadow:inset 0 3px 0 rgba(255,255,255,.28); }
+  .teamcard .tn{ font-family:"Fredoka",sans-serif; font-weight:700; font-size:20px; }
+  .teamcard .tr{ color:var(--muted); font-size:12px; }
+
+  /* ============================ VERSUS ================================= */
   #s-versus{ position:relative; height:100svh; overflow:hidden; }
   #s-versus.on{ display:block; }
-  .field{ position:absolute; inset:0; }
-  .field .side{ position:absolute; top:0; bottom:0; width:62%; }
-  .field .side.a{ left:0;  background:linear-gradient(135deg,var(--a),#1b3fb0); clip-path:polygon(0 0,100% 0,72% 100%,0 100%); }
-  .field .side.b{ right:0; background:linear-gradient(315deg,var(--b),#b81f3e); clip-path:polygon(28% 0,100% 0,100% 100%,0 100%); }
+  .field2{ position:absolute; inset:0; }
+  .field2 .side{ position:absolute; top:0; bottom:0; width:62%; }
+  .field2 .side.a{ left:0;  background:linear-gradient(135deg,var(--a),color-mix(in srgb,var(--a) 55%, #000)); clip-path:polygon(0 0,100% 0,72% 100%,0 100%); }
+  .field2 .side.b{ right:0; background:linear-gradient(315deg,var(--b),color-mix(in srgb,var(--b) 55%, #000)); clip-path:polygon(28% 0,100% 0,100% 100%,0 100%); }
   .seam{ position:absolute; top:0; bottom:0; left:50%; width:3px; transform:translateX(-50%) skewX(-16deg); background:linear-gradient(180deg,transparent,rgba(255,255,255,.85),transparent); z-index:3; }
   .vtop{ position:absolute; top:0; left:0; right:0; z-index:8; text-align:center; padding:22px 16px 0; }
   .vtop .kick{ font-family:"Fredoka",sans-serif; font-weight:600; letter-spacing:3px; text-transform:uppercase; font-size:13px; color:var(--gold); }
-  .vtop .sub{ font-size:12.5px; color:rgba(255,255,255,.75); margin-top:4px; }
+  .vtop .sub{ font-size:12.5px; color:rgba(255,255,255,.8); margin-top:4px; }
   .fighters{ position:absolute; inset:0; display:flex; align-items:center; justify-content:space-between; padding:0 16px; z-index:4; }
   .fighter{ width:44%; display:flex; flex-direction:column; align-items:center; gap:11px; text-align:center; }
-  .fighter .team{ font-family:"Fredoka",sans-serif; font-weight:600; font-size:12px; letter-spacing:2px; text-transform:uppercase; }
-  .avatar{ width:100px; height:100px; border-radius:26px; display:grid; place-items:center; font-family:"Fredoka",sans-serif; font-weight:700; font-size:42px; color:#fff; box-shadow:0 18px 40px -12px rgba(0,0,0,.6), inset 0 3px 0 rgba(255,255,255,.25); }
-  .fighter.a .avatar{ background:linear-gradient(150deg,var(--a2),var(--a)); }
-  .fighter.b .avatar{ background:linear-gradient(150deg,var(--b2),var(--b)); }
+  .fighter .team{ font-family:"Fredoka",sans-serif; font-weight:600; font-size:13px; letter-spacing:1px; text-transform:uppercase; }
+  .avatar{ width:100px; height:100px; border-radius:26px; display:grid; place-items:center; font-family:"Fredoka",sans-serif; font-weight:700; font-size:40px; color:#fff; box-shadow:0 18px 40px -12px rgba(0,0,0,.6), inset 0 3px 0 rgba(255,255,255,.25); }
+  .fighter.a .avatar{ background:linear-gradient(150deg,var(--a2),var(--a)); } .fighter.a .team{ color:var(--a2); }
+  .fighter.b .avatar{ background:linear-gradient(150deg,var(--b2),var(--b)); } .fighter.b .team{ color:var(--b2); }
   .fighter .pname{ font-family:"Fredoka",sans-serif; font-weight:700; font-size:24px; line-height:1; }
   .fighter.a{ animation:inL .6s cubic-bezier(.2,1,.35,1) both; } .fighter.b{ animation:inR .6s cubic-bezier(.2,1,.35,1) both; }
   @keyframes inL{ from{transform:translateX(-70px) scale(.85);opacity:0} to{transform:none;opacity:1} }
@@ -66,9 +102,17 @@
   .vspark{ position:absolute; top:50%; left:50%; width:280px; height:280px; transform:translate(-50%,-50%); z-index:5; background:radial-gradient(circle,rgba(255,194,77,.5),transparent 62%); animation:vspark .6s .15s ease-out both; }
   @keyframes vspark{ 0%{opacity:0;transform:translate(-50%,-50%) scale(.3)} 40%{opacity:1} 100%{opacity:0;transform:translate(-50%,-50%) scale(1.6)} }
   .vbottom{ position:absolute; left:0; right:0; bottom:0; z-index:8; padding:0 18px calc(22px + env(safe-area-inset-bottom)); display:flex; flex-direction:column; align-items:center; gap:10px; }
-  .vbottom .note{ font-size:12px; color:rgba(255,255,255,.8); text-align:center; }
+  .vbottom .note{ font-size:12px; color:rgba(255,255,255,.85); text-align:center; }
   .vbottom .btn{ width:min(340px,100%); animation:fade .5s .8s both; }
   @keyframes fade{ from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:none} }
+
+  /* ======================= COUNTDOWN OVERLAY =========================== */
+  #countdown{ position:fixed; inset:0; z-index:40; display:none; align-items:center; justify-content:center; background:rgba(6,10,32,.86); backdrop-filter:blur(3px); }
+  #countdown.on{ display:flex; }
+  #cdNum{ font-family:"Fredoka",sans-serif; font-weight:700; font-size:120px; color:#fff; text-shadow:0 0 40px rgba(255,194,77,.6); }
+  #cdNum.go{ font-size:64px; color:var(--gold); }
+  .cdpop{ animation:cdpop .6s ease-out; }
+  @keyframes cdpop{ 0%{transform:scale(.4);opacity:0} 40%{transform:scale(1.1);opacity:1} 100%{transform:scale(1);opacity:1} }
 
   /* ============================ DUEL =================================== */
   .topbar{ display:flex; align-items:center; gap:12px; }
@@ -86,7 +130,6 @@
   .oppchip.locked{ color:var(--b2); } .oppchip.locked .dot{ background:var(--b2); animation:none; }
   @keyframes blink{ 0%,100%{opacity:1} 50%{opacity:.3} }
 
-  /* live bench tap meter */
   .tapmeter{ background:var(--ink-2); border:1px solid var(--line); border-radius:14px; padding:10px 12px; }
   .tapmeter .head{ display:flex; justify-content:space-between; font-size:11.5px; font-weight:800; margin-bottom:7px; }
   .tapmeter .head .la{ color:var(--a2); } .tapmeter .head .lb{ color:var(--b2); }
@@ -100,9 +143,8 @@
   .movelabel[data-move=scissors]{ color:var(--gold-ink); } .movelabel[data-move=invalid]{ color:var(--danger); }
   .movesub{ color:var(--muted); font-size:12.5px; height:16px; }
 
-  /* hand — soft-shaded single-fold (vars drive color) */
   .hand{ position:relative; width:204px; height:242px; margin:8px 0 2px; perspective:660px; touch-action:manipulation;
-    --h1:#8ab7ff; --h2:#2f6bff; --hp1:#5b8cff; --hp2:#2f6bff; }
+    --h1:var(--a2); --h2:var(--a); --hp1:var(--a2); --hp2:var(--a); }
   .hand .palm{ position:absolute; left:18px; bottom:0; width:170px; height:128px; z-index:1; border-radius:44px 48px 46px 46px;
     background:radial-gradient(130% 90% at 32% 18%, var(--h1), transparent 56%), linear-gradient(165deg,var(--hp1),var(--hp2) 80%);
     box-shadow:inset 0 -14px 24px var(--hsh), inset 0 9px 16px rgba(255,255,255,.20), 0 16px 28px -14px rgba(0,0,0,.5); }
@@ -122,8 +164,7 @@
   details.legend{ background:var(--ink-2); border:1px solid var(--line); border-radius:14px; overflow:hidden; }
   details.legend summary{ cursor:pointer; list-style:none; padding:11px 14px; font-family:"Fredoka",sans-serif; font-weight:600; font-size:13.5px; }
   details.legend summary::-webkit-details-marker{ display:none; }
-  .legend-body{ padding:2px 14px 14px; color:var(--muted); font-size:12.5px; line-height:1.7; }
-  .legend-body b{ color:var(--text); }
+  .legend-body{ padding:2px 14px 14px; color:var(--muted); font-size:12.5px; line-height:1.7; } .legend-body b{ color:var(--text); }
 
   /* ======================= REVEAL + SCORING ============================ */
   .overlay{ position:fixed; inset:0; z-index:30; display:none; background:radial-gradient(120% 90% at 50% 40%, #16205a, #070c24 72%); }
@@ -147,7 +188,6 @@
   .rbanner .reason{ color:#b9c6ee; font-size:13.5px; margin:7px 0 16px; }
   .rbanner .btn{ max-width:300px; margin-inline:auto; }
 
-  /* scoring card */
   .scard{ width:min(410px,100% - 28px); margin:auto; background:var(--ink-2); border:1px solid var(--line); border-radius:22px; padding:20px; box-shadow:0 30px 60px -20px rgba(0,0,0,.7); animation:pop .3s cubic-bezier(.2,1.3,.4,1) both; }
   @keyframes pop{ from{opacity:0;transform:scale(.9)} to{opacity:1;transform:none} }
   .scard h2{ font-family:"Fredoka",sans-serif; font-weight:700; font-size:21px; margin:0 0 12px; text-align:center; }
@@ -157,15 +197,14 @@
   .pts.a{ color:var(--a2); } .pts.b{ color:var(--b2); }
   .board{ margin-top:12px; border-top:1px solid var(--line); padding-top:12px; display:flex; flex-direction:column; gap:6px; }
   .brow{ display:flex; align-items:center; justify-content:space-between; padding:10px 12px; border-radius:12px; }
-  .brow.a{ background:linear-gradient(90deg,rgba(47,107,255,.22),transparent); } .brow.b{ background:linear-gradient(90deg,rgba(255,77,109,.22),transparent); }
+  .brow.a{ background:linear-gradient(90deg,color-mix(in srgb,var(--a) 26%, transparent),transparent); } .brow.b{ background:linear-gradient(90deg,color-mix(in srgb,var(--b) 26%, transparent),transparent); }
   .brow .nm{ font-family:"Fredoka",sans-serif; font-weight:600; font-size:15px; } .brow .tot{ font-family:"Fredoka",sans-serif; font-weight:700; font-size:20px; font-variant-numeric:tabular-nums; }
-  .scard .row2{ display:flex; gap:10px; margin-top:14px; }
-  .scard .row2 .btn{ flex:1; }
+  .scard .row2{ display:flex; gap:10px; margin-top:14px; } .scard .row2 .btn{ flex:1; }
 
   /* ============================ FINAL ================================== */
-  #s-final .wrap{ align-items:center; text-align:center; padding-top:60px; }
+  #s-final .wrap{ align-items:center; text-align:center; padding-top:44px; }
   .trophy{ font-family:"Fredoka",sans-serif; font-weight:700; font-size:15px; letter-spacing:2px; text-transform:uppercase; color:var(--gold); }
-  .champ{ font-family:"Fredoka",sans-serif; font-weight:700; font-size:40px; margin:6px 0 2px; }
+  .champ{ font-family:"Fredoka",sans-serif; font-weight:700; font-size:38px; margin:6px 0 2px; }
   .champ.a{ color:var(--a2); } .champ.b{ color:var(--b2); }
   .pn-title{ font-family:"Fredoka",sans-serif; font-weight:600; font-size:13px; letter-spacing:1.5px; text-transform:uppercase; color:var(--gold-ink); margin-top:26px; }
   .pn-note{ color:var(--muted); font-size:12px; margin:4px 0 10px; max-width:360px; line-height:1.5; }
@@ -180,21 +219,84 @@
   @media (prefers-reduced-motion:reduce){ *{ animation-duration:.001s !important; } }
 </style>
 
+<!-- ============================ SETUP ================================= -->
+<section class="screen on" id="s-setup">
+  <div class="wrap">
+    <h1 class="title">Hand Duel</h1>
+    <p class="lede">A spin on rock · paper · scissors. Set up the match, then play.</p>
+
+    <div class="panel">
+      <h2>Match length</h2>
+      <div class="steprow">
+        <div class="muted">Each player duels…</div>
+        <div class="stepper">
+          <button id="lenMinus" aria-label="Fewer">−</button>
+          <input id="lenInput" type="text" inputmode="numeric" value="2" aria-label="Times each player duels">
+          <button id="lenPlus" aria-label="More">+</button>
+        </div>
+      </div>
+      <p class="muted" style="margin:8px 0 0;">…times before the match ends.</p>
+    </div>
+
+    <div class="panel">
+      <h2>Players <span class="muted" id="pcount"></span></h2>
+      <div class="plist" id="plist"></div>
+      <button class="btn ghost sm" id="addBot" style="margin-top:12px;">+ Add bot player</button>
+      <p class="muted" style="margin:10px 0 0;">Testing solo? Add bots to fill both teams. They'll be split into two teams at random.</p>
+    </div>
+
+    <button class="btn" id="startSetup" disabled>Make teams</button>
+  </div>
+</section>
+
+<!-- ========================= CAPTAIN =================================== -->
+<section class="screen" id="s-captain">
+  <div class="wrap">
+    <h1 class="title">You're the captain!</h1>
+    <p class="lede" id="capLede">Name your team and pick a colour.</p>
+    <div class="panel">
+      <div class="field">
+        <label for="teamNameIn">Team name</label>
+        <input id="teamNameIn" type="text" maxlength="16" autocomplete="off" placeholder="e.g. The Sharks">
+      </div>
+      <div class="field" style="margin-bottom:6px;">
+        <label>Team colour</label>
+        <div class="swatches" id="swatches"></div>
+      </div>
+      <p class="err" id="capErr"></p>
+    </div>
+    <button class="btn" id="capConfirm">Lock in team</button>
+  </div>
+</section>
+
+<!-- ======================= TEAMS READY ================================ -->
+<section class="screen" id="s-teams">
+  <div class="wrap">
+    <h1 class="title">Teams are set</h1>
+    <p class="lede">Champions will be picked at random each matchup.</p>
+    <div id="teamCards"></div>
+    <button class="btn" id="beginBtn">Begin the match</button>
+  </div>
+</section>
+
 <!-- ============================ VERSUS ================================= -->
 <section class="screen" id="s-versus">
-  <div class="field"><div class="side a"></div><div class="side b"></div></div>
+  <div class="field2"><div class="side a"></div><div class="side b"></div></div>
   <div class="seam"></div>
   <div class="vtop"><div class="kick" id="vkick">Matchmaking</div><div class="sub" id="vsub">One champion from each team steps up</div></div>
   <div class="rflash" id="vflash" style="z-index:7;"></div>
   <div class="vspark" id="vsparkEl"></div>
   <div class="fighters">
-    <div class="fighter a" id="vfa"><div class="team" style="color:var(--a2)">Team Blue</div><div class="avatar" id="vavA">Y</div><div class="pname" id="vnA">You</div></div>
-    <div class="fighter b" id="vfb"><div class="team" style="color:var(--b2)">Team Red</div><div class="avatar" id="vavB">R</div><div class="pname" id="vnB">Riley</div></div>
+    <div class="fighter a" id="vfa"><div class="team" id="vtA">Team A</div><div class="avatar" id="vavA">A</div><div class="pname" id="vnA">—</div></div>
+    <div class="fighter b" id="vfb"><div class="team" id="vtB">Team B</div><div class="avatar" id="vavB">B</div><div class="pname" id="vnB">—</div></div>
   </div>
   <div class="vvs" id="vvsEl">VS</div>
-  <div class="vbottom"><div class="note">Everyone else <b>taps to score</b> for their team while you duel.</div>
+  <div class="vbottom"><div class="note" id="vnote">Everyone else <b>taps to score</b> for their team while you duel.</div>
     <button class="btn" id="toDuelBtn">Start the duel</button></div>
 </section>
+
+<!-- ======================= COUNTDOWN =================================== -->
+<div id="countdown"><div id="cdNum">3</div></div>
 
 <!-- ============================ DUEL ================================== -->
 <section class="screen" id="s-duel">
@@ -202,17 +304,15 @@
     <div class="topbar">
       <div class="timer" id="timer"><svg viewBox="0 0 100 100"><circle class="track" cx="50" cy="50" r="42"/><circle class="prog" id="ring" cx="50" cy="50" r="42"/></svg><div class="num" id="tnum">30</div></div>
       <div class="status">
-        <div class="round" id="roundLbl">Duel · Round 1</div>
+        <div class="round" id="roundLbl">Duel · Matchup 1</div>
         <div class="headline">Shape your move</div>
         <span class="oppchip" id="oppchip"><span class="dot"></span> <span id="oppText">Rival is choosing…</span></span>
       </div>
     </div>
-
     <div class="tapmeter">
-      <div class="head"><span class="la">Blue bench <span id="benchA">0</span></span><span class="lb"><span id="benchB">0</span> Red bench</span></div>
+      <div class="head"><span class="la" id="labelA">Blue bench <span id="benchA">0</span></span><span class="lb"><span id="benchB">0</span> <span id="labelB">Red bench</span></span></div>
       <div class="tug"><div class="fill" id="fill"></div><div class="mark"></div></div>
     </div>
-
     <div class="stage">
       <div class="movelabel" id="moveLabel" data-move="paper">PAPER</div>
       <div class="movesub" id="moveSub">All fingers out</div>
@@ -224,11 +324,9 @@
         <button class="finger f-pinky"  data-f="pinky"  aria-label="Pinky finger" aria-pressed="false"><span class="nail"></span></button>
         <div class="palm"></div>
       </div>
-      <p class="hint">Tap fingers to fold them in.</p>
+      <p class="hint">Tap fingers to fold them, then <b>Lock In</b>. No lock-in = forfeit!</p>
     </div>
-
     <button class="btn blue" id="lockBtn" disabled>Lock In</button>
-
     <details class="legend"><summary>How to make each move</summary>
       <div class="legend-body"><b>Paper</b> — all fingers out (default) · <b>Rock</b> — all folded in · <b>Scissors</b> — ring + pinky folded in. Anything else is <b>invalid</b> = you lose.</div>
     </details>
@@ -267,13 +365,14 @@
     <div class="pn-title">Party-night points</div>
     <div class="pn-note">Winners earn +1 each. Across the night this personal board carries between games — even when teams shuffle or a game is free-for-all.</div>
     <div class="pboard" id="partyBoard"></div>
-    <button class="btn" id="rematchBtn" style="margin-top:22px; max-width:320px;">Play a new match</button>
+    <button class="btn" id="rematchBtn" style="margin-top:22px; max-width:320px;">New match (same players)</button>
+    <button class="btn ghost" id="reSetupBtn" style="margin-top:10px; max-width:320px;">Back to setup</button>
   </div>
 </section>
 
 <script>
 /* =============================================================================
-   Model + helpers
+   Constants + helpers
    ========================================================================== */
 const FINGERS = ['thumb','index','middle','ring','pinky'];
 const MOVE_CLOSED = { paper:[], rock:['thumb','index','middle','ring','pinky'], scissors:['ring','pinky'] };
@@ -283,112 +382,241 @@ const MOVE_SUB = { paper:'All fingers out', rock:'All fingers folded in', scisso
 function beats(a,b){ return (a==='rock'&&b==='scissors')||(a==='paper'&&b==='rock')||(a==='scissors'&&b==='paper'); }
 const VERB = { rock:'crushes', paper:'covers', scissors:'cuts' };
 const $ = id => document.getElementById(id);
-function cap(s){ return s.charAt(0).toUpperCase()+s.slice(1); }
-function pick(a){ return a[Math.floor(Math.random()*a.length)]; }
-function teamName(k){ return k==='a' ? 'Team Blue' : 'Team Red'; }
+const cap = s => s.charAt(0).toUpperCase()+s.slice(1);
+const pick = a => a[Math.floor(Math.random()*a.length)];
+const initials = n => { const p=n.trim().split(/\s+/); return (p.length>1?p[0][0]+p[1][0]:n.slice(0,2)).toUpperCase(); };
+function shuffle(a){ for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } return a; }
 
-/* posed hand for the reveal */
-function poseHand(container, closedSet, color){
-  const stylevar = color==='rose' ? '--h1:#ff9bb0;--h2:#ff5470;--hp1:#ff7a95;--hp2:#ff5470;' : '';
-  const map = { thumb:'thumb', index:'f-index', middle:'f-middle', ring:'f-ring', pinky:'f-pinky' };
-  const fh = FINGERS.map(f => '<span class="finger '+(f==='thumb'?'thumb ':'')+map[f]+(closedSet.has(f)?' closed':'')+'"><span class="nail"></span></span>').join('');
-  container.innerHTML = '<div class="hand" style="position:absolute;left:50%;bottom:0;transform:translateX(-50%) scale(.58);'+stylevar+'">'+fh+'<div class="palm"></div></div>';
+const COLORS = [
+  {id:'blue',   name:'Blue',   base:'#2f6bff', light:'#6aa9ff'},
+  {id:'red',    name:'Red',    base:'#ff4d6d', light:'#ff86a0'},
+  {id:'green',  name:'Green',  base:'#22b364', light:'#57e08d'},
+  {id:'purple', name:'Purple', base:'#7b5cff', light:'#a892ff'},
+  {id:'orange', name:'Orange', base:'#ff8a3d', light:'#ffb27a'},
+  {id:'teal',   name:'Teal',   base:'#12b3b3', light:'#4fdada'},
+  {id:'pink',   name:'Pink',   base:'#ff5db1', light:'#ff92cf'},
+  {id:'gold',   name:'Amber',  base:'#f0a91e', light:'#ffcf5c'}
+];
+const BOT_NAMES = ['Sam','Priya','Marcus','Riley','Jordan','Mei','Tariq','Cleo','Otis','Kai','Wren','Nina','Diego','Ada','Milo','Zoe'];
+const BOT_TEAM_NAMES = ['The Wolves','Sharks','Dragons','Ninjas','Rockets','Vipers','Titans','Foxes','Bolts','Comets','Hawks','Pandas','Goblins','Jets'];
+
+/* =============================================================================
+   State
+   ========================================================================== */
+let players = ['You'];              // setup roster (names)
+let PLAY_TIMES = 2;
+const ROSTER = { a:[], b:[] };      // player objects per team
+const teamMeta = { a:{name:'Team A', color:COLORS[0]}, b:{name:'Team B', color:COLORS[1]} };
+const totals = { a:0, b:0 };
+let round = 0, suddenDeath = false;
+let champA = null, champB = null;   // current champion player objects
+
+function mkPlayer(name){ return { name, duels:0, opp:new Set(), party:0 }; }
+function allPlayers(){ return [...ROSTER.a, ...ROSTER.b]; }
+function teamName(k){ return teamMeta[k].name; }
+function show(id){ document.querySelectorAll('.screen').forEach(s => s.classList.toggle('on', s.id===id)); window.scrollTo(0,0); }
+
+/* apply the two team colours to the whole UI via CSS variables */
+function applyColors(){
+  const r = document.documentElement.style;
+  r.setProperty('--a', teamMeta.a.color.base);  r.setProperty('--a2', teamMeta.a.color.light);
+  r.setProperty('--b', teamMeta.b.color.base);  r.setProperty('--b2', teamMeta.b.color.light);
 }
 
 /* =============================================================================
-   Match state
+   SETUP
    ========================================================================== */
-const totals = { a:0, b:0 };
-let round = 0;
-let champA = 'You', champB = 'Riley';
+function renderSetup(){
+  $('pcount').textContent = '· ' + players.length;
+  $('plist').innerHTML = players.map((n,i) =>
+    '<span class="chip'+(n==='You'?' you':'')+'">'+n+(n==='You'?'':'<span class="x" data-i="'+i+'">✕</span>')+'</span>'
+  ).join('');
+  $('startSetup').disabled = players.length < 2;
+  $('startSetup').textContent = players.length < 2 ? 'Add at least 1 bot' : 'Make teams';
+}
+$('plist').addEventListener('click', e => {
+  const x = e.target.closest('.x'); if(!x) return;
+  players.splice(+x.dataset.i, 1); renderSetup();
+});
+$('addBot').addEventListener('click', () => {
+  const avail = BOT_NAMES.filter(n => !players.includes(n));
+  if(!avail.length) return;
+  players.push(pick(avail)); renderSetup();
+});
+function readLen(){ let v = parseInt($('lenInput').value,10); if(isNaN(v)||v<1) v=1; if(v>50) v=50; return v; }
+$('lenMinus').addEventListener('click', () => { $('lenInput').value = Math.max(1, readLen()-1); });
+$('lenPlus').addEventListener('click', () => { $('lenInput').value = readLen()+1; });
+$('lenInput').addEventListener('input', e => { e.target.value = e.target.value.replace(/[^0-9]/g,'').slice(0,2); });
 
-// team rosters — each player tracks how many times they've dueled, who they've
-// faced, and their party-night points. Demo: 4 v 4 (you are Team Blue's first).
-const ROSTER = {
-  a: ['You','Sam','Priya','Marcus'].map(n => ({ name:n, duels:0, opp:new Set(), party:0 })),
-  b: ['Riley','Jordan','Mei','Tariq'].map(n => ({ name:n, duels:0, opp:new Set(), party:0 }))
-};
-let curA = null, curB = null;   // current champions (player objects)
-const PLAY_TIMES = 2;           // match ends when everyone has dueled this many times
+$('startSetup').addEventListener('click', () => {
+  PLAY_TIMES = readLen();
+  // assign teams: You always on A; split the rest as evenly as possible
+  const others = shuffle(players.filter(p => p!=='You'));
+  ROSTER.a = [mkPlayer('You')]; ROSTER.b = [];
+  others.forEach((n,i) => (i % 2 === 0 ? ROSTER.b : ROSTER.a).push(mkPlayer(n)));
+  if(ROSTER.b.length === 0){ ROSTER.b.push(ROSTER.a.pop()); }   // guarantee both teams
+  // captains: you captain A (so you get to pick); a random bot captains B
+  teamMeta.a.captain = 'You';
+  teamMeta.b.captain = pick(ROSTER.b).name;
+  botPickTeam('b');            // opponent captain chooses first, so you see what's taken
+  openCaptain();
+});
 
-function allPlayers(){ return [...ROSTER.a, ...ROSTER.b]; }
+/* a bot captain auto-picks a distinct name + colour */
+function botPickTeam(k){
+  const otherK = k==='a' ? 'b' : 'a';
+  const takenName = (teamMeta[otherK].name||'').toLowerCase();
+  const takenColor = teamMeta[otherK].colorChosen ? teamMeta[otherK].color.id : null;
+  const name = pick(BOT_TEAM_NAMES.filter(n => n.toLowerCase() !== takenName));
+  const color = pick(COLORS.filter(c => c.id !== takenColor));
+  teamMeta[k] = { name, color, colorChosen:true, captain: teamMeta[k].captain };
+}
+
+/* =============================================================================
+   CAPTAIN (you pick team A's name + colour, avoiding team B's)
+   ========================================================================== */
+let selColor = null;
+function openCaptain(){
+  selColor = null;
+  $('teamNameIn').value = '';
+  $('capErr').textContent = '';
+  $('capLede').textContent = 'You captain your team. ' + teamMeta.b.name + ' already picked ' + teamMeta.b.color.name + '.';
+  const taken = teamMeta.b.color.id;
+  $('swatches').innerHTML = COLORS.map(c => {
+    const dis = c.id === taken;
+    return '<div class="sw'+(dis?'':'')+'" data-c="'+c.id+'" aria-disabled="'+dis+'" style="background:linear-gradient(150deg,'+c.light+','+c.base+')">'+(dis?'<span class="taken">TAKEN</span>':'')+'</div>';
+  }).join('');
+  show('s-captain');
+}
+$('swatches').addEventListener('click', e => {
+  const sw = e.target.closest('.sw'); if(!sw || sw.getAttribute('aria-disabled')==='true') return;
+  selColor = sw.dataset.c;
+  $('swatches').querySelectorAll('.sw').forEach(s => s.classList.toggle('sel', s===sw));
+});
+$('capConfirm').addEventListener('click', () => {
+  const name = $('teamNameIn').value.trim();
+  if(!name){ $('capErr').textContent = 'Give your team a name.'; return; }
+  if(name.toLowerCase() === teamMeta.b.name.toLowerCase()){ $('capErr').textContent = 'That name is taken by the other team.'; return; }
+  if(!selColor){ $('capErr').textContent = 'Pick a colour.'; return; }
+  teamMeta.a = { name, color: COLORS.find(c => c.id===selColor), colorChosen:true, captain:'You' };
+  applyColors();
+  renderTeamsReady();
+  show('s-teams');
+});
+
+/* =============================================================================
+   TEAMS READY
+   ========================================================================== */
+function renderTeamsReady(){
+  const card = k => {
+    const m = teamMeta[k], roster = ROSTER[k].map(p=>p.name).join(', ');
+    return '<div class="teamcard" style="background:linear-gradient(90deg,color-mix(in srgb,'+m.color.base+' 26%, transparent),transparent); border:1px solid var(--line)">'+
+      '<div class="tdot" style="background:linear-gradient(150deg,'+m.color.light+','+m.color.base+')"></div>'+
+      '<div><div class="tn">'+m.name+'</div><div class="tr">Captain '+m.captain+' · '+roster+'</div></div></div>';
+  };
+  $('teamCards').innerHTML = card('a') + card('b');
+}
+$('beginBtn').addEventListener('click', () => { round=0; totals.a=0; totals.b=0; suddenDeath=false; toVersus(); });
+
+/* =============================================================================
+   MATCHMAKING + VERSUS
+   ========================================================================== */
 function matchComplete(){ return allPlayers().every(p => p.duels >= PLAY_TIMES); }
+function remainingNeeded(){ return allPlayers().filter(p => p.duels < PLAY_TIMES).length; }
 function nextMatchup(){
-  // least-dueled player on each side; pick a Red the Blue hasn't faced yet
   const aP = [...ROSTER.a].sort((x,y) => x.duels - y.duels || Math.random()-.5)[0];
   const bSorted = [...ROSTER.b].sort((x,y) => x.duels - y.duels || Math.random()-.5);
   const bP = bSorted.find(b => !aP.opp.has(b.name)) || bSorted[0];
   return { aP, bP };
 }
-function remainingNeeded(){ return allPlayers().filter(p => p.duels < PLAY_TIMES).length; }
+function toVersus(){
+  if(!suddenDeath && matchComplete()){ attemptFinal(); return; }
+  let aP, bP;
+  if(suddenDeath){ aP = pick(ROSTER.a); bP = pick(ROSTER.b); }
+  else { ({ aP, bP } = nextMatchup()); round++; }
+  champA = aP; champB = bP;
+  $('vkick').textContent = suddenDeath ? 'Sudden death' : 'Matchup ' + round;
+  $('vsub').textContent = suddenDeath ? 'Tiebreaker — win to take the whole match' :
+    ('Everyone duels ' + PLAY_TIMES + '× · ' + remainingNeeded() + ' still to go');
+  $('vtA').textContent = teamMeta.a.name; $('vtB').textContent = teamMeta.b.name;
+  $('vnA').textContent = champA.name; $('vnB').textContent = champB.name;
+  $('vavA').textContent = initials(champA.name); $('vavB').textContent = initials(champB.name);
+  show('s-versus');
+  ['vfa','vfb','vvsEl','vflash','vsparkEl'].forEach(id => { const e=$(id); e.style.animation='none'; void e.offsetWidth; e.style.animation=''; });
+}
+$('toDuelBtn').addEventListener('click', () => runCountdown(beginDuel));
 
-/* per-duel */
+/* =============================================================================
+   COUNTDOWN  (3 · 2 · 1 · SHAPE!)
+   ========================================================================== */
+function runCountdown(then){
+  prepDuel();
+  const seq = ['3','2','1','SHAPE!'];
+  let i = 0;
+  $('countdown').classList.add('on');
+  const stepEl = $('cdNum');
+  const step = () => {
+    const val = seq[i];
+    stepEl.textContent = val;
+    stepEl.className = (val==='SHAPE!') ? 'go' : '';   // clear, reflow, re-add to restart the pop
+    void stepEl.offsetWidth;
+    stepEl.className = (val==='SHAPE!') ? 'go cdpop' : 'cdpop';
+    i++;
+    if(i < seq.length){ setTimeout(step, 700); }
+    else { setTimeout(() => { $('countdown').classList.remove('on'); then(); }, 650); }
+  };
+  step();
+}
+
+/* =============================================================================
+   DUEL (prep = build screen; begin = start clocks) + bench tap battle
+   ========================================================================== */
 const closed = new Set();
 let locked=false, meLocked=false, botLocked=false, botMove='paper', botLockAt=0;
-let startTs=0, raf=0, finished=false, lockMoment=0;
+let startTs=0, raf=0, finished=false, duelActive=false;
 let benchA=0, benchB=0, benchTimerA=0, benchTimerB=0;
 const ROUND_MS=30000, C=2*Math.PI*42;
 $('ring').style.strokeDasharray = C;
 
-/* =============================================================================
-   Screen switching
-   ========================================================================== */
-function show(id){ document.querySelectorAll('.screen').forEach(s => s.classList.toggle('on', s.id===id)); window.scrollTo(0,0); }
-
-/* =============================================================================
-   VERSUS
-   ========================================================================== */
-function toVersus(){
-  if(matchComplete()){ finalStandings(); return; }
-  const { aP, bP } = nextMatchup();
-  curA = aP; curB = bP; champA = aP.name; champB = bP.name;
-  round++;
-  $('vkick').textContent = 'Matchup ' + round;
-  $('vsub').textContent = 'Playing until everyone has dueled ' + PLAY_TIMES + ' times · ' + remainingNeeded() + ' still to go';
-  $('vnA').textContent = champA; $('vnB').textContent = champB;
-  $('vavA').textContent = champA.slice(0,2).toUpperCase(); $('vavB').textContent = champB.slice(0,2).toUpperCase();
-  show('s-versus');
-  ['vfa','vfb','vvsEl','vflash','vsparkEl'].forEach(id => { const e=$(id); e.style.animation='none'; void e.offsetWidth; e.style.animation=''; });
-}
-$('toDuelBtn').addEventListener('click', startDuel);
-
-/* =============================================================================
-   DUEL + bench tap battle
-   ========================================================================== */
 function myMove(){ return classify(closed); }
 function refreshHand(){
   const m = myMove();
   $('moveLabel').textContent = m.toUpperCase(); $('moveLabel').dataset.move = m;
   $('moveSub').textContent = MOVE_SUB[m];
-  if(!locked){ const b=$('lockBtn'); b.disabled = (m==='invalid')||finished; b.textContent='Lock In'; }
+  if(!locked){ const b=$('lockBtn'); b.disabled = (m==='invalid') || !duelActive || finished; b.textContent='Lock In'; }
 }
 $('hand').querySelectorAll('.finger').forEach(btn => btn.addEventListener('click', () => {
-  if(locked||finished) return;
+  if(locked || finished || !duelActive) return;
   const f = btn.dataset.f;
   if(closed.has(f)){ closed.delete(f); btn.classList.remove('closed'); btn.setAttribute('aria-pressed','false'); }
   else { closed.add(f); btn.classList.add('closed'); btn.setAttribute('aria-pressed','true'); }
   refreshHand();
 }));
 
-function startDuel(){
-  finished=false; locked=false; meLocked=false; botLocked=false;
+function prepDuel(){
+  finished=false; locked=false; meLocked=false; botLocked=false; duelActive=false;
   closed.clear();
   $('hand').querySelectorAll('.finger').forEach(b => { b.classList.remove('closed'); b.setAttribute('aria-pressed','false'); });
-  $('roundLbl').textContent = 'Duel · Round ' + round;
-  $('oppchip').classList.remove('locked'); $('oppText').textContent = champB + ' is choosing…';
+  $('roundLbl').textContent = (suddenDeath ? 'Sudden death · ' : 'Duel · Matchup ') + (suddenDeath ? '' : round);
+  $('oppchip').classList.remove('locked'); $('oppText').textContent = champB.name + ' is choosing…';
   $('lockBtn').disabled = true; $('lockBtn').textContent = 'Lock In';
+  $('labelA').firstChild && ($('labelA').childNodes[0].nodeValue = teamMeta.a.name + ' bench ');
+  $('labelB').textContent = teamMeta.b.name + ' bench';
   benchA=0; benchB=0; renderBench();
+  $('timer').classList.remove('warn'); $('tnum').textContent = 30;
+  $('ring').style.strokeDashoffset = 0;
   refreshHand();
-
-  botMove = pick(['rock','paper','scissors']);
-  botLockAt = 4000 + Math.random()*20000;
-  startTs = performance.now();
-  $('timer').classList.remove('warn');
   show('s-duel');
+}
+function beginDuel(){
+  duelActive = true;
+  botMove = pick(['rock','paper','scissors']);
+  botLockAt = 3500 + Math.random()*19000;
+  startTs = performance.now();
   cancelAnimationFrame(raf); tick();
   runBench();
+  refreshHand();
 }
-
 function renderBench(){
   $('benchA').textContent = benchA; $('benchB').textContent = benchB;
   const t = benchA + benchB; $('fill').style.width = (t ? benchA/t*100 : 50) + '%';
@@ -399,49 +627,61 @@ function runBench(){
   const stepB = () => { if(finished) return; benchB++; renderBench(); benchTimerB = setTimeout(stepB, 80 + Math.random()*240); };
   benchTimerA = setTimeout(stepA, 200); benchTimerB = setTimeout(stepB, 200);
 }
-
 function tick(){
   const elapsed = performance.now() - startTs;
   const remain = Math.max(0, ROUND_MS - elapsed);
   $('tnum').textContent = Math.ceil(remain/1000);
   $('ring').style.strokeDashoffset = C * (1 - remain/ROUND_MS);
   $('timer').classList.toggle('warn', Math.ceil(remain/1000) <= 10);
-  if(!botLocked && elapsed >= botLockAt){ botLocked = true; $('oppchip').classList.add('locked'); $('oppText').textContent = champB + ' locked in'; if(meLocked) return resolve(); }
+  if(!botLocked && elapsed >= botLockAt){ botLocked = true; $('oppchip').classList.add('locked'); $('oppText').textContent = champB.name + ' locked in'; if(meLocked) return resolve(); }
   if(remain <= 0) return resolve();
   raf = requestAnimationFrame(tick);
 }
 $('lockBtn').addEventListener('click', () => {
-  if(locked||finished||myMove()==='invalid') return;
+  if(locked || finished || !duelActive || myMove()==='invalid') return;
   locked=true; meLocked=true; $('lockBtn').textContent='Locked ✓'; $('lockBtn').disabled=true;
   if(botLocked) resolve();
 });
 
 function resolve(){
-  if(finished) return; finished=true;
+  if(finished) return; finished=true; duelActive=false;
   cancelAnimationFrame(raf); clearTimeout(benchTimerA); clearTimeout(benchTimerB);
-  const me = myMove(), meClosed = new Set(closed), botClosed = new Set(MOVE_CLOSED[botMove]);
+  // idle (no lock-in) = forfeit for that champion
+  const meFinal = meLocked ? myMove() : 'idle';
+  const botFinal = botLocked ? botMove : 'idle';
+  const meClosed = new Set(closed), botClosed = new Set(MOVE_CLOSED[botMove]||[]);
+  const meOK = meFinal!=='idle', botOK = botFinal!=='idle';
   let outcome, reason;
-  if(me==='invalid'){ outcome='lose'; reason='Your move was invalid!'; }
-  else if(me===botMove){ outcome='tie'; reason='Both picked '+me+' — rematch!'; }
-  else if(beats(me,botMove)){ outcome='win'; reason=cap(me)+' '+VERB[me]+' '+botMove+'.'; }
-  else { outcome='lose'; reason=cap(botMove)+' '+VERB[botMove]+' '+me+'.'; }
-  showReveal(me, meClosed, botMove, botClosed, outcome, reason);
+  if(!meOK && !botOK){ outcome='tie'; reason='Both went idle — rematch!'; }
+  else if(!meOK){ outcome='lose'; reason='You went idle — no lock-in!'; }
+  else if(!botOK){ outcome='win'; reason=champB.name+' went idle!'; }
+  else if(meFinal===botFinal){ outcome='tie'; reason='Both picked '+meFinal+' — rematch!'; }
+  else if(beats(meFinal,botFinal)){ outcome='win'; reason=cap(meFinal)+' '+VERB[meFinal]+' '+botFinal+'.'; }
+  else { outcome='lose'; reason=cap(botFinal)+' '+VERB[botFinal]+' '+meFinal+'.'; }
+  showReveal(meFinal, meClosed, botFinal, botClosed, outcome, reason);
 }
 
 /* =============================================================================
    REVEAL
    ========================================================================== */
 let pendingOutcome = null;
+function poseHand(container, closedSet, colorObj){
+  const v = '--h1:'+colorObj.light+';--h2:'+colorObj.base+';--hp1:'+colorObj.light+';--hp2:'+colorObj.base+';';
+  const map = { thumb:'thumb', index:'f-index', middle:'f-middle', ring:'f-ring', pinky:'f-pinky' };
+  const fh = FINGERS.map(f => '<span class="finger '+(f==='thumb'?'thumb ':'')+map[f]+(closedSet.has(f)?' closed':'')+'"><span class="nail"></span></span>').join('');
+  container.innerHTML = '<div class="hand" style="position:absolute;left:50%;bottom:0;transform:translateX(-50%) scale(.58);'+v+'">'+fh+'<div class="palm"></div></div>';
+}
 function showReveal(meMove, meClosed, botMove, botClosed, outcome, reason){
-  poseHand($('handYou'), meClosed, 'blue'); poseHand($('handOpp'), botClosed, 'rose');
-  $('whoYou').textContent = champA; $('whoOpp').textContent = champB;
-  $('mvYou').textContent = meMove; $('mvOpp').textContent = botMove;
+  poseHand($('handYou'), meClosed, teamMeta.a.color);
+  poseHand($('handOpp'), botClosed, teamMeta.b.color);
+  $('whoYou').textContent = champA.name; $('whoOpp').textContent = champB.name;
+  $('mvYou').textContent = meMove; $('mvOpp').textContent = botMove==='idle'?'idle':botMove;
   const y=$('rfYou'), o=$('rfOpp'); y.className='rf you'; o.className='rf opp';
   document.querySelectorAll('.stamp').forEach(s=>s.remove());
-  if(meMove==='invalid'){ const s=document.createElement('div'); s.className='stamp'; s.textContent='INVALID'; y.appendChild(s); }
+  if(meMove==='idle'||meMove==='invalid'){ const s=document.createElement('div'); s.className='stamp'; s.textContent=meMove.toUpperCase(); y.appendChild(s); }
+  if(botMove==='idle'){ const s=document.createElement('div'); s.className='stamp'; s.textContent='IDLE'; o.appendChild(s); }
   $('reveal').classList.add('on');
   const fl=$('rflash'); fl.style.animation='none'; void fl.offsetWidth; fl.style.animation='fl .7s ease-out';
-
   setTimeout(() => {
     if(outcome==='win'){ y.classList.add('win'); o.classList.add('dim'); $('rbig').textContent='YOU WIN'; $('rbig').className='big win'; }
     else if(outcome==='lose'){ o.classList.add('win'); y.classList.add('dim'); $('rbig').textContent='YOU LOSE'; $('rbig').className='big lose'; }
@@ -453,7 +693,7 @@ function showReveal(meMove, meClosed, botMove, botClosed, outcome, reason){
 }
 $('revealBtn').addEventListener('click', () => {
   $('reveal').classList.remove('on');
-  if(pendingOutcome==='tie'){ startDuel(); return; }   // ties replay the same pair
+  if(pendingOutcome==='tie'){ runCountdown(beginDuel); return; }   // ties replay the same pair
   scoreRound(pendingOutcome);
 });
 
@@ -461,46 +701,47 @@ $('revealBtn').addEventListener('click', () => {
    SCORING
    ========================================================================== */
 function scoreRound(outcome){
-  // this matchup is now resolved — record it for matchmaking + end condition
-  curA.duels++; curB.duels++; curA.opp.add(curB.name); curB.opp.add(curA.name);
-
-  const duelWin = (outcome==='win') ? 'a' : 'b';   // you are Team Blue
+  champA.duels++; champB.duels++; champA.opp.add(champB.name); champB.opp.add(champA.name);
+  const duelWin = (outcome==='win') ? 'a' : 'b';
   const tapDiff = Math.abs(benchA - benchB);
-  const tapWin = benchA===benchB ? null : (benchA>benchB ? 'a' : 'b');
+  const tapWin = benchA===benchB ? null : (benchA>benchB ? 'a' : 'b');   // ties = no bonus
   if(tapWin) totals[tapWin] += tapDiff;
   totals[duelWin] += 500;
 
   $('sTitle').textContent = teamName(duelWin) + ' takes the round!';
-  $('tapWinner').textContent = tapWin ? teamName(tapWin)+' tapped more' : 'Even taps';
+  $('tapWinner').textContent = tapWin ? teamName(tapWin)+' tapped more' : 'Even taps — no bonus';
   $('tapDetail').textContent = benchA + ' vs ' + benchB;
   $('tapPts').textContent = '+' + tapDiff; $('tapPts').className = 'pts ' + (tapWin||'a');
   $('duelWinner').textContent = teamName(duelWin); $('duelPts').className = 'pts ' + duelWin;
   renderBoard($('board'));
-  $('nextBtn').textContent = matchComplete() ? 'See final results' : 'Next duel';
+  $('nextBtn').textContent = (suddenDeath || matchComplete()) ? 'See result' : 'Next duel';
   $('scoring').classList.add('on');
 }
 function renderBoard(el){
   const rows = [['a',totals.a],['b',totals.b]].sort((x,y)=>y[1]-x[1]);
   el.innerHTML = rows.map(([k,v]) => '<div class="brow '+k+'"><span class="nm">'+teamName(k)+'</span><span class="tot">'+v+'</span></div>').join('');
 }
-$('nextBtn').addEventListener('click', () => { $('scoring').classList.remove('on'); toVersus(); });
-$('endBtn').addEventListener('click', () => { $('scoring').classList.remove('on'); finalStandings(); });
+$('nextBtn').addEventListener('click', () => {
+  $('scoring').classList.remove('on');
+  if(suddenDeath || matchComplete()) attemptFinal(); else toVersus();
+});
+$('endBtn').addEventListener('click', () => { $('scoring').classList.remove('on'); attemptFinal(); });
 
 /* =============================================================================
-   FINAL
+   SUDDEN DEATH + FINAL
    ========================================================================== */
+function attemptFinal(){
+  if(totals.a === totals.b){ suddenDeath = true; toVersus(); }   // tie -> sudden death duel
+  else finalStandings();
+}
 function finalStandings(){
-  const winner = totals.a===totals.b ? null : (totals.a>totals.b ? 'a' : 'b');
-  // reward: every player on the winning team earns +1 party-night point
-  if(winner) ROSTER[winner].forEach(p => p.party += 1);
-
-  $('finalChamp').textContent = winner ? teamName(winner) : "It's a tie!";
-  $('finalChamp').className = 'champ ' + (winner||'a');
-  $('finalSub').textContent = winner ? 'wins the match — +1 party point to each player' : 'dead even — no payout';
+  suddenDeath = false;
+  const winner = totals.a>totals.b ? 'a' : 'b';
+  ROSTER[winner].forEach(p => p.party += 1);
+  $('finalChamp').textContent = teamName(winner);
+  $('finalChamp').className = 'champ ' + winner;
+  $('finalSub').textContent = 'wins the match — +1 party point to each player';
   renderBoard($('finalBoard'));
-
-  // party-night leaderboard (individuals). Across a real night this persists
-  // between games with shuffling teams + free-for-alls; here it's this game's payout.
   const ranked = allPlayers().slice().sort((x,y) => y.party - x.party || x.name.localeCompare(y.name));
   $('partyBoard').innerHTML = ranked.map(p => {
     const side = ROSTER.a.includes(p) ? 'a' : 'b';
@@ -510,11 +751,12 @@ function finalStandings(){
   show('s-final');
 }
 $('rematchBtn').addEventListener('click', () => {
-  totals.a=0; totals.b=0; round=0;
+  totals.a=0; totals.b=0; round=0; suddenDeath=false;
   allPlayers().forEach(p => { p.duels=0; p.opp.clear(); });   // party points persist across the night
   toVersus();
 });
+$('reSetupBtn').addEventListener('click', () => { show('s-setup'); });
 
 /* boot */
-toVersus();
+renderSetup();
 </script>
