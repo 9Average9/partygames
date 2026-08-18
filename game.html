@@ -167,6 +167,15 @@
   .trophy{ font-family:"Fredoka",sans-serif; font-weight:700; font-size:15px; letter-spacing:2px; text-transform:uppercase; color:var(--gold); }
   .champ{ font-family:"Fredoka",sans-serif; font-weight:700; font-size:40px; margin:6px 0 2px; }
   .champ.a{ color:var(--a2); } .champ.b{ color:var(--b2); }
+  .pn-title{ font-family:"Fredoka",sans-serif; font-weight:600; font-size:13px; letter-spacing:1.5px; text-transform:uppercase; color:var(--gold-ink); margin-top:26px; }
+  .pn-note{ color:var(--muted); font-size:12px; margin:4px 0 10px; max-width:360px; line-height:1.5; }
+  .pboard{ width:100%; display:flex; flex-direction:column; gap:5px; }
+  .prow{ display:flex; align-items:center; gap:10px; background:var(--ink-2); border:1px solid var(--line); border-radius:11px; padding:9px 12px; }
+  .prow .dotc{ width:9px; height:9px; border-radius:50%; flex:none; }
+  .prow .dotc.a{ background:var(--a2); } .prow .dotc.b{ background:var(--b2); }
+  .prow .pn{ flex:1; text-align:left; font-weight:800; font-size:14px; }
+  .prow .youtag{ font-size:10px; font-weight:800; color:var(--muted); background:var(--ink-3); border:1px solid var(--line); padding:1px 6px; border-radius:999px; }
+  .prow .pp{ font-family:"Fredoka",sans-serif; font-weight:700; font-size:17px; color:var(--gold-ink); font-variant-numeric:tabular-nums; }
 
   @media (prefers-reduced-motion:reduce){ *{ animation-duration:.001s !important; } }
 </style>
@@ -175,7 +184,7 @@
 <section class="screen" id="s-versus">
   <div class="field"><div class="side a"></div><div class="side b"></div></div>
   <div class="seam"></div>
-  <div class="vtop"><div class="kick" id="vkick">Matchmaking</div><div class="sub">One champion from each team steps up</div></div>
+  <div class="vtop"><div class="kick" id="vkick">Matchmaking</div><div class="sub" id="vsub">One champion from each team steps up</div></div>
   <div class="rflash" id="vflash" style="z-index:7;"></div>
   <div class="vspark" id="vsparkEl"></div>
   <div class="fighters">
@@ -255,6 +264,9 @@
     <div class="champ" id="finalChamp">—</div>
     <div style="color:var(--muted); font-size:14px; margin-bottom:20px;" id="finalSub">wins the match</div>
     <div class="board" id="finalBoard" style="width:100%; border:none; padding:0;"></div>
+    <div class="pn-title">Party-night points</div>
+    <div class="pn-note">Winners earn +1 each. Across the night this personal board carries between games — even when teams shuffle or a game is free-for-all.</div>
+    <div class="pboard" id="partyBoard"></div>
     <button class="btn" id="rematchBtn" style="margin-top:22px; max-width:320px;">Play a new match</button>
   </div>
 </section>
@@ -275,8 +287,6 @@ function cap(s){ return s.charAt(0).toUpperCase()+s.slice(1); }
 function pick(a){ return a[Math.floor(Math.random()*a.length)]; }
 function teamName(k){ return k==='a' ? 'Team Blue' : 'Team Red'; }
 
-const NAMES_B = ['Riley','Jordan','Mei','Tariq','Cleo','Otis','Kai','Wren'];
-
 /* posed hand for the reveal */
 function poseHand(container, closedSet, color){
   const stylevar = color==='rose' ? '--h1:#ff9bb0;--h2:#ff5470;--hp1:#ff7a95;--hp2:#ff5470;' : '';
@@ -291,6 +301,26 @@ function poseHand(container, closedSet, color){
 const totals = { a:0, b:0 };
 let round = 0;
 let champA = 'You', champB = 'Riley';
+
+// team rosters — each player tracks how many times they've dueled, who they've
+// faced, and their party-night points. Demo: 4 v 4 (you are Team Blue's first).
+const ROSTER = {
+  a: ['You','Sam','Priya','Marcus'].map(n => ({ name:n, duels:0, opp:new Set(), party:0 })),
+  b: ['Riley','Jordan','Mei','Tariq'].map(n => ({ name:n, duels:0, opp:new Set(), party:0 }))
+};
+let curA = null, curB = null;   // current champions (player objects)
+const PLAY_TIMES = 2;           // match ends when everyone has dueled this many times
+
+function allPlayers(){ return [...ROSTER.a, ...ROSTER.b]; }
+function matchComplete(){ return allPlayers().every(p => p.duels >= PLAY_TIMES); }
+function nextMatchup(){
+  // least-dueled player on each side; pick a Red the Blue hasn't faced yet
+  const aP = [...ROSTER.a].sort((x,y) => x.duels - y.duels || Math.random()-.5)[0];
+  const bSorted = [...ROSTER.b].sort((x,y) => x.duels - y.duels || Math.random()-.5);
+  const bP = bSorted.find(b => !aP.opp.has(b.name)) || bSorted[0];
+  return { aP, bP };
+}
+function remainingNeeded(){ return allPlayers().filter(p => p.duels < PLAY_TIMES).length; }
 
 /* per-duel */
 const closed = new Set();
@@ -309,11 +339,14 @@ function show(id){ document.querySelectorAll('.screen').forEach(s => s.classList
    VERSUS
    ========================================================================== */
 function toVersus(){
+  if(matchComplete()){ finalStandings(); return; }
+  const { aP, bP } = nextMatchup();
+  curA = aP; curB = bP; champA = aP.name; champB = bP.name;
   round++;
-  champA = 'You';
-  champB = pick(NAMES_B);
+  $('vkick').textContent = 'Matchup ' + round;
+  $('vsub').textContent = 'Playing until everyone has dueled ' + PLAY_TIMES + ' times · ' + remainingNeeded() + ' still to go';
   $('vnA').textContent = champA; $('vnB').textContent = champB;
-  $('vavA').textContent = 'Y'; $('vavB').textContent = champB.slice(0,2).toUpperCase();
+  $('vavA').textContent = champA.slice(0,2).toUpperCase(); $('vavB').textContent = champB.slice(0,2).toUpperCase();
   show('s-versus');
   ['vfa','vfb','vvsEl','vflash','vsparkEl'].forEach(id => { const e=$(id); e.style.animation='none'; void e.offsetWidth; e.style.animation=''; });
 }
@@ -401,7 +434,7 @@ function resolve(){
 let pendingOutcome = null;
 function showReveal(meMove, meClosed, botMove, botClosed, outcome, reason){
   poseHand($('handYou'), meClosed, 'blue'); poseHand($('handOpp'), botClosed, 'rose');
-  $('whoYou').textContent = 'You'; $('whoOpp').textContent = champB;
+  $('whoYou').textContent = champA; $('whoOpp').textContent = champB;
   $('mvYou').textContent = meMove; $('mvOpp').textContent = botMove;
   const y=$('rfYou'), o=$('rfOpp'); y.className='rf you'; o.className='rf opp';
   document.querySelectorAll('.stamp').forEach(s=>s.remove());
@@ -428,6 +461,9 @@ $('revealBtn').addEventListener('click', () => {
    SCORING
    ========================================================================== */
 function scoreRound(outcome){
+  // this matchup is now resolved — record it for matchmaking + end condition
+  curA.duels++; curB.duels++; curA.opp.add(curB.name); curB.opp.add(curA.name);
+
   const duelWin = (outcome==='win') ? 'a' : 'b';   // you are Team Blue
   const tapDiff = Math.abs(benchA - benchB);
   const tapWin = benchA===benchB ? null : (benchA>benchB ? 'a' : 'b');
@@ -440,6 +476,7 @@ function scoreRound(outcome){
   $('tapPts').textContent = '+' + tapDiff; $('tapPts').className = 'pts ' + (tapWin||'a');
   $('duelWinner').textContent = teamName(duelWin); $('duelPts').className = 'pts ' + duelWin;
   renderBoard($('board'));
+  $('nextBtn').textContent = matchComplete() ? 'See final results' : 'Next duel';
   $('scoring').classList.add('on');
 }
 function renderBoard(el){
@@ -454,13 +491,29 @@ $('endBtn').addEventListener('click', () => { $('scoring').classList.remove('on'
    ========================================================================== */
 function finalStandings(){
   const winner = totals.a===totals.b ? null : (totals.a>totals.b ? 'a' : 'b');
+  // reward: every player on the winning team earns +1 party-night point
+  if(winner) ROSTER[winner].forEach(p => p.party += 1);
+
   $('finalChamp').textContent = winner ? teamName(winner) : "It's a tie!";
   $('finalChamp').className = 'champ ' + (winner||'a');
-  $('finalSub').textContent = winner ? 'wins the match' : 'dead even';
+  $('finalSub').textContent = winner ? 'wins the match — +1 party point to each player' : 'dead even — no payout';
   renderBoard($('finalBoard'));
+
+  // party-night leaderboard (individuals). Across a real night this persists
+  // between games with shuffling teams + free-for-alls; here it's this game's payout.
+  const ranked = allPlayers().slice().sort((x,y) => y.party - x.party || x.name.localeCompare(y.name));
+  $('partyBoard').innerHTML = ranked.map(p => {
+    const side = ROSTER.a.includes(p) ? 'a' : 'b';
+    return '<div class="prow"><span class="dotc '+side+'"></span><span class="pn">'+p.name+
+      (p.name==='You'?' <span class="youtag">you</span>':'')+'</span><span class="pp">'+p.party+'</span></div>';
+  }).join('');
   show('s-final');
 }
-$('rematchBtn').addEventListener('click', () => { totals.a=0; totals.b=0; round=0; toVersus(); });
+$('rematchBtn').addEventListener('click', () => {
+  totals.a=0; totals.b=0; round=0;
+  allPlayers().forEach(p => { p.duels=0; p.opp.clear(); });   // party points persist across the night
+  toVersus();
+});
 
 /* boot */
 toVersus();
