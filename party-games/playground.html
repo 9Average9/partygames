@@ -1,4 +1,4 @@
-<title>Shindig Lobby</title>
+<title>Party Games Lobby</title>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -6,261 +6,330 @@
 
 <style>
   /* =========================================================================
-     SHINDIG — party game lobby (Step 1)
-     Single committed "party screen" look. Colors are painted explicitly so the
-     page holds on any host background; no light/dark toggle by design.
+     PARTY GAMES — lobby (Step 1, v2: no host computer)
+     Any phone creates a room; a computer/TV can optionally "spectate".
+     Committed blue "party screen" look — painted explicitly, no theme toggle.
      ========================================================================= */
   :root{
-    --ink:      #1a1030;   /* deep plum night (page ground)   */
-    --ink-2:    #251640;   /* raised panel                    */
-    --ink-3:    #2f1c52;   /* card / input surface            */
-    --line:     #3d2a63;   /* hairline borders                */
-    --pink:     #ff5d8f;   /* primary party accent            */
-    --gold:     #ffcf5c;   /* secondary accent                */
-    --cyan:     #4dd6c8;   /* tertiary accent                 */
-    --text:     #f6efff;   /* warm white                      */
-    --muted:    #a794c8;   /* muted lilac text                */
-    --shadow:   0 18px 40px -18px rgba(0,0,0,.7);
-    --r:        18px;      /* card radius                     */
+    --ink:    #0b1533;   /* deep ink-blue ground        */
+    --ink-2:  #13224b;   /* raised panel                */
+    --ink-3:  #1b2e60;   /* card / input surface        */
+    --line:   #294077;   /* hairline borders            */
+    --blue:   #4f9dff;   /* primary azure accent        */
+    --cyan:   #46e0d8;   /* secondary accent            */
+    --violet: #8b93ff;   /* cool range accent           */
+    --gold:   #ffc24d;   /* warm pop: host / start / win */
+    --text:   #eaf1ff;   /* warm white                  */
+    --muted:  #92a6d8;   /* muted periwinkle text       */
+    --shadow: 0 18px 40px -18px rgba(0,0,0,.75);
+    --r: 18px;
   }
 
   *{ box-sizing:border-box; }
   html,body{ margin:0; }
   body{
     background:
-      radial-gradient(1200px 600px at 80% -10%, rgba(255,93,143,.18), transparent 60%),
-      radial-gradient(1000px 500px at -10% 20%, rgba(77,214,200,.14), transparent 55%),
+      radial-gradient(1200px 620px at 82% -12%, rgba(79,157,255,.20), transparent 60%),
+      radial-gradient(1000px 520px at -12% 18%, rgba(70,224,216,.13), transparent 55%),
       var(--ink);
     color:var(--text);
     font-family:"Nunito", system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
-    line-height:1.5;
-    min-height:100vh;
-    -webkit-text-size-adjust:100%;
+    line-height:1.5; min-height:100vh; -webkit-text-size-adjust:100%;
   }
 
   .wrap{
-    width:min(560px, 100% - 28px);
-    margin-inline:auto;
-    padding:22px 0 60px;
-    display:flex;
-    flex-direction:column;
-    gap:22px;
+    width:min(560px, 100% - 28px); margin-inline:auto; padding:22px 0 60px;
+    display:flex; flex-direction:column; gap:22px;
   }
 
   /* ---- masthead ---------------------------------------------------------- */
   .brand{ display:flex; align-items:center; gap:12px; padding-top:6px; }
   .brand-mark{
     width:44px; height:44px; border-radius:13px; flex:none;
-    display:grid; place-items:center; font-size:26px;
-    background:linear-gradient(150deg, var(--pink), var(--gold));
-    box-shadow:var(--shadow);
-    transform:rotate(-6deg);
+    display:grid; place-items:center; font-size:25px;
+    background:linear-gradient(150deg, var(--blue), var(--cyan));
+    box-shadow:var(--shadow); transform:rotate(-6deg);
   }
   .brand h1{
     font-family:"Fredoka", sans-serif; font-weight:700;
-    font-size:28px; letter-spacing:.5px; margin:0; line-height:1;
+    font-size:26px; letter-spacing:.3px; margin:0; line-height:1;
+    text-transform:lowercase;
   }
   .brand small{ display:block; color:var(--muted); font-weight:700; font-size:12px; letter-spacing:.4px; }
 
   /* ---- shared panel scaffolding ----------------------------------------- */
   .panel{
-    background:var(--ink-2);
-    border:1px solid var(--line);
-    border-radius:var(--r);
-    box-shadow:var(--shadow);
-    overflow:hidden;
+    background:var(--ink-2); border:1px solid var(--line);
+    border-radius:var(--r); box-shadow:var(--shadow); overflow:hidden;
   }
   .panel-label{
     display:flex; align-items:center; gap:8px;
     font-family:"Fredoka", sans-serif; font-weight:600;
-    text-transform:uppercase; letter-spacing:1.4px; font-size:12px;
-    color:var(--muted);
-    padding:13px 16px;
-    border-bottom:1px solid var(--line);
-    background:rgba(0,0,0,.12);
+    text-transform:uppercase; letter-spacing:1.4px; font-size:12px; color:var(--muted);
+    padding:13px 16px; border-bottom:1px solid var(--line); background:rgba(0,0,0,.14);
   }
-  .panel-label .dot{ width:8px; height:8px; border-radius:50%; background:var(--cyan); box-shadow:0 0 0 4px rgba(77,214,200,.15); }
+  .panel-label .dot{ width:8px; height:8px; border-radius:50%; background:var(--cyan); box-shadow:0 0 0 4px rgba(70,224,216,.15); }
+  .panel-label .tag{
+    margin-left:auto; font-size:10px; letter-spacing:.8px; color:var(--muted);
+    background:var(--ink-3); border:1px solid var(--line); padding:3px 8px; border-radius:999px;
+  }
 
-  /* ============================ TV SCREEN ================================= */
-  .tv-body{ padding:22px 18px 20px; text-align:center; position:relative; }
+  /* ====================== SPECTATOR SCREEN =============================== */
+  .spec-body{ padding:20px 18px 20px; text-align:center; }
+  .spec-title{ font-family:"Fredoka",sans-serif; font-weight:600; font-size:15px; color:var(--gold); letter-spacing:.4px; margin:0 0 2px; }
+  .spec-sub{ color:var(--muted); font-size:13px; margin:0 0 14px; }
 
-  .tv-title{ font-family:"Fredoka",sans-serif; font-weight:600; font-size:15px; color:var(--gold); letter-spacing:.5px; margin:0 0 2px; }
-  .tv-sub{ color:var(--muted); font-size:13px; margin:0 0 16px; }
-
-  .join-line{ color:var(--muted); font-size:13.5px; margin:0 0 6px; }
+  .join-line{ color:var(--muted); font-size:13px; margin:0 0 6px; }
   .join-line b{ color:var(--text); }
-
   .code{
     font-family:"Fredoka",sans-serif; font-weight:700;
-    font-size:clamp(52px, 17vw, 78px); line-height:1; letter-spacing:.14em;
-    margin:2px 0 4px; padding-left:.14em;
-    background:linear-gradient(160deg, var(--pink) 20%, var(--gold));
+    font-size:clamp(48px, 16vw, 72px); line-height:1; letter-spacing:.14em;
+    margin:2px 0 8px; padding-left:.14em;
+    background:linear-gradient(160deg, var(--blue) 20%, var(--cyan));
     -webkit-background-clip:text; background-clip:text; color:transparent;
-    filter:drop-shadow(0 6px 16px rgba(255,93,143,.25));
+    filter:drop-shadow(0 6px 16px rgba(79,157,255,.28));
   }
+  .linkchip{
+    display:inline-flex; align-items:center; gap:8px; cursor:pointer;
+    font-weight:800; font-size:12.5px; color:var(--text);
+    background:var(--ink-3); border:1px solid var(--line); border-radius:999px;
+    padding:6px 12px; transition:border-color .15s, transform .08s;
+  }
+  .linkchip:hover{ border-color:var(--blue); }
+  .linkchip:active{ transform:translateY(1px); }
+  .linkchip .u{ color:var(--muted); font-weight:700; }
+  .linkchip .ico{ font-size:13px; }
 
-  .count{
-    display:inline-flex; align-items:center; gap:7px;
-    font-weight:800; font-size:13px; color:var(--text);
-    background:var(--ink-3); border:1px solid var(--line);
-    padding:5px 13px; border-radius:999px; margin-top:6px;
+  /* leaderboard / standings */
+  .board{ list-style:none; margin:16px 0 0; padding:0; display:flex; flex-direction:column; gap:8px; text-align:left; }
+  .row{
+    display:flex; align-items:center; gap:11px;
+    background:var(--ink-3); border:1px solid var(--line); border-radius:13px;
+    padding:9px 12px; animation:pop .32s cubic-bezier(.2,1.3,.4,1) both;
   }
-  .count .dot{ width:7px;height:7px;border-radius:50%;background:var(--cyan); }
-
-  /* player grid */
-  .players{
-    list-style:none; margin:18px 0 0; padding:0;
-    display:grid; grid-template-columns:repeat(auto-fill, minmax(84px,1fr)); gap:10px;
-  }
-  .player{
-    background:var(--ink-3); border:1px solid var(--line);
-    border-radius:14px; padding:12px 6px 10px;
-    display:flex; flex-direction:column; align-items:center; gap:7px;
-    animation:pop .32s cubic-bezier(.2,1.3,.4,1) both;
-  }
-  .avatar{
-    width:44px; height:44px; border-radius:50%; flex:none;
-    display:grid; place-items:center; font-size:24px;
-    box-shadow:0 4px 12px -4px rgba(0,0,0,.6);
-  }
-  .player .name{
-    font-weight:800; font-size:12.5px; max-width:100%;
-    overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
-  }
-  @keyframes pop{ from{ opacity:0; transform:scale(.6) translateY(6px);} to{opacity:1; transform:none;} }
+  .rank{ font-family:"Fredoka",sans-serif; font-weight:600; font-size:14px; color:var(--muted); width:20px; text-align:center; flex:none; font-variant-numeric:tabular-nums; }
+  .avatar{ width:38px; height:38px; border-radius:50%; flex:none; display:grid; place-items:center; font-size:21px; box-shadow:0 4px 12px -4px rgba(0,0,0,.6); }
+  .row .who{ min-width:0; flex:1; }
+  .row .name{ font-weight:800; font-size:14px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .row .name .crown{ margin-left:5px; }
+  .row .meta{ font-size:11.5px; color:var(--muted); }
+  .score{ font-family:"Fredoka",sans-serif; font-weight:600; font-size:16px; color:var(--cyan); flex:none; font-variant-numeric:tabular-nums; }
+  .score small{ display:block; font-family:"Nunito"; font-weight:700; font-size:9px; letter-spacing:.6px; color:var(--muted); text-align:right; }
+  @keyframes pop{ from{opacity:0; transform:scale(.7) translateY(6px);} to{opacity:1; transform:none;} }
 
   .empty{
-    margin:20px 0 4px; padding:22px 12px;
-    border:1.5px dashed var(--line); border-radius:14px;
+    margin:16px 0 0; padding:26px 14px; border:1.5px dashed var(--line); border-radius:14px;
     color:var(--muted); font-size:13.5px;
   }
   .empty .big{ font-size:30px; display:block; margin-bottom:6px; }
 
-  .start-row{ margin-top:18px; }
-
-  /* ============================ PHONE ==================================== */
+  /* ============================ PHONE =================================== */
   .phone-body{ padding:18px 16px 20px; }
-  .field{ margin-bottom:13px; }
-  .field label{
-    display:block; font-weight:800; font-size:11px; letter-spacing:1px;
-    text-transform:uppercase; color:var(--muted); margin:0 0 6px 2px;
+
+  /* home menu */
+  .menu{ display:flex; flex-direction:column; gap:11px; }
+  .menu .lead{ text-align:center; color:var(--muted); font-size:13.5px; margin:2px 0 6px; }
+  .choice{
+    -webkit-appearance:none; appearance:none; cursor:pointer; text-align:left; width:100%;
+    display:flex; align-items:center; gap:13px;
+    background:var(--ink-3); border:1.5px solid var(--line); border-radius:14px;
+    padding:14px 15px; color:var(--text); transition:border-color .15s, transform .08s;
   }
+  .choice:hover{ border-color:var(--blue); }
+  .choice:active{ transform:translateY(1px); }
+  .choice .emoji{ font-size:25px; flex:none; width:34px; text-align:center; }
+  .choice .ct{ font-family:"Fredoka",sans-serif; font-weight:600; font-size:16.5px; line-height:1.15; }
+  .choice .cs{ font-size:12px; color:var(--muted); }
+  .choice.hero{ border-color:transparent; background:linear-gradient(150deg, var(--blue), #6aa9ff); color:var(--ink); }
+  .choice.hero .cs{ color:rgba(11,21,51,.72); }
+
+  /* forms */
+  .field{ margin-bottom:13px; }
+  .field label{ display:block; font-weight:800; font-size:11px; letter-spacing:1px; text-transform:uppercase; color:var(--muted); margin:0 0 6px 2px; }
   input[type=text]{
-    width:100%; font-family:inherit; font-weight:700; font-size:16px;
-    color:var(--text); background:var(--ink-3);
-    border:1.5px solid var(--line); border-radius:12px;
+    width:100%; font-family:inherit; font-weight:700; font-size:16px; color:var(--text);
+    background:var(--ink-3); border:1.5px solid var(--line); border-radius:12px;
     padding:13px 14px; outline:none; transition:border-color .15s, box-shadow .15s;
   }
-  input[type=text]::placeholder{ color:#7a68a0; font-weight:600; }
-  input[type=text]:focus{ border-color:var(--pink); box-shadow:0 0 0 3px rgba(255,93,143,.22); }
+  input[type=text]::placeholder{ color:#6b7bb0; font-weight:600; }
+  input[type=text]:focus{ border-color:var(--blue); box-shadow:0 0 0 3px rgba(79,157,255,.22); }
   #joinCode{ text-transform:uppercase; letter-spacing:.28em; font-family:"Fredoka",sans-serif; font-size:22px; text-align:center; }
 
   .btn{
     -webkit-appearance:none; appearance:none; cursor:pointer;
-    font-family:"Fredoka",sans-serif; font-weight:600; font-size:16px;
-    color:var(--ink); background:linear-gradient(150deg, var(--pink), #ff7fa4);
-    border:none; border-radius:13px; padding:14px 18px; width:100%;
-    box-shadow:0 10px 22px -10px rgba(255,93,143,.8);
-    transition:transform .08s ease, filter .15s ease;
+    font-family:"Fredoka",sans-serif; font-weight:600; font-size:16px; color:var(--ink);
+    background:linear-gradient(150deg, var(--blue), #6aa9ff); border:none; border-radius:13px;
+    padding:14px 18px; width:100%;
+    box-shadow:0 10px 22px -10px rgba(79,157,255,.85); transition:transform .08s, filter .15s;
   }
   .btn:hover{ filter:brightness(1.05); }
   .btn:active{ transform:translateY(1px) scale(.995); }
   .btn:disabled{ opacity:.45; cursor:not-allowed; box-shadow:none; filter:grayscale(.3); }
-  .btn.gold{ background:linear-gradient(150deg, var(--gold), #ffe08a); box-shadow:0 10px 22px -10px rgba(255,207,92,.8); }
-  .btn.ghost{
-    background:transparent; color:var(--muted); box-shadow:none;
-    border:1.5px solid var(--line); font-weight:500;
-  }
+  .btn.gold{ background:linear-gradient(150deg, var(--gold), #ffd77e); box-shadow:0 10px 22px -10px rgba(255,194,77,.8); }
+  .btn.ghost{ background:transparent; color:var(--muted); box-shadow:none; border:1.5px solid var(--line); font-weight:500; }
   .btn.ghost:hover{ color:var(--text); border-color:var(--muted); filter:none; }
+  .btn-row{ display:flex; gap:10px; margin-top:4px; }
+  .btn-row .btn{ width:auto; }
+  .btn-row .btn.grow{ flex:1; }
 
-  .btn-row{ display:flex; gap:10px; }
-  .btn-row .btn{ width:auto; flex:1; }
+  .form-head{ display:flex; align-items:center; gap:10px; margin:0 0 14px; }
+  .back{ cursor:pointer; background:var(--ink-3); border:1px solid var(--line); color:var(--text); width:34px; height:34px; border-radius:10px; font-size:16px; flex:none; display:grid; place-items:center; }
+  .back:hover{ border-color:var(--muted); }
+  .form-head h3{ font-family:"Fredoka",sans-serif; font-weight:600; font-size:18px; margin:0; }
 
-  /* joined state on phone */
-  .joined{ text-align:center; padding:8px 4px 4px; animation:pop .3s cubic-bezier(.2,1.3,.4,1) both; }
-  .joined .avatar{ width:76px; height:76px; font-size:42px; margin:6px auto 12px; }
+  /* joined state */
+  .joined{ text-align:center; padding:6px 4px 2px; animation:pop .3s cubic-bezier(.2,1.3,.4,1) both; }
+  .joined .avatar{ width:74px; height:74px; font-size:40px; margin:4px auto 12px; }
   .joined .hi{ font-family:"Fredoka",sans-serif; font-weight:600; font-size:22px; }
-  .joined .status{ color:var(--muted); font-size:13.5px; margin:4px 0 18px; }
-  .pulse{ display:inline-block; width:8px;height:8px;border-radius:50%; background:var(--cyan); margin-right:6px; animation:blink 1.2s infinite; vertical-align:middle; }
+  .joined .status{ color:var(--muted); font-size:13.5px; margin:5px 0 16px; }
+  .pulse{ display:inline-block; width:8px; height:8px; border-radius:50%; background:var(--cyan); margin-right:6px; animation:blink 1.2s infinite; vertical-align:middle; }
   @keyframes blink{ 0%,100%{opacity:1} 50%{opacity:.25} }
+  .hostcard{
+    display:inline-flex; align-items:center; gap:7px; margin-bottom:14px;
+    font-weight:800; font-size:12px; color:var(--gold);
+    background:rgba(255,194,77,.10); border:1px solid rgba(255,194,77,.35);
+    padding:5px 12px; border-radius:999px;
+  }
+  .share-note{ color:var(--muted); font-size:12.5px; margin:0 0 14px; }
+  .share-note b{ color:var(--text); }
+
+  .error{ color:var(--blue); min-height:16px; margin:8px 0 0; font-weight:700; font-size:13px; text-align:center; }
 
   .hint{
-    display:flex; gap:9px; align-items:flex-start;
-    color:var(--muted); font-size:12.5px; line-height:1.45;
-    background:rgba(77,214,200,.07); border:1px solid var(--line);
-    border-radius:12px; padding:11px 13px;
+    display:flex; gap:9px; align-items:flex-start; color:var(--muted); font-size:12.5px; line-height:1.45;
+    background:rgba(70,224,216,.07); border:1px solid var(--line); border-radius:12px; padding:11px 13px;
   }
   .hint b{ color:var(--cyan); }
+  .foot{ text-align:center; color:var(--muted); font-size:11.5px; opacity:.85; }
 
-  .foot{ text-align:center; color:var(--muted); font-size:11.5px; opacity:.8; }
-
-  @media (prefers-reduced-motion:reduce){
-    *{ animation:none !important; }
+  /* toast */
+  #toast{
+    position:fixed; left:50%; bottom:22px; transform:translateX(-50%) translateY(20px);
+    background:var(--ink-3); border:1px solid var(--line); color:var(--text);
+    font-weight:800; font-size:13px; padding:10px 16px; border-radius:999px;
+    box-shadow:var(--shadow); opacity:0; pointer-events:none; transition:opacity .2s, transform .2s; z-index:9;
   }
+  #toast.show{ opacity:1; transform:translateX(-50%) translateY(0); }
+
+  @media (prefers-reduced-motion:reduce){ *{ animation:none !important; } }
 </style>
 
 <div class="wrap">
 
   <div class="brand">
-    <div class="brand-mark">🎉</div>
+    <div class="brand-mark">🎈</div>
     <div>
-      <h1>SHINDIG</h1>
-      <small>party games · lobby preview</small>
+      <h1>party games</h1>
+      <small>lobby preview · no host computer needed</small>
     </div>
   </div>
 
-  <!-- ======================= THE TV SCREEN ============================= -->
+  <!-- ===================== SPECTATOR SCREEN ============================ -->
   <section class="panel">
-    <div class="panel-label"><span class="dot"></span> On the TV</div>
-    <div class="tv-body">
-      <p class="tv-title">🎈 A SHINDIG is starting!</p>
-      <p class="tv-sub">Grab your phone to join the room.</p>
+    <div class="panel-label"><span class="dot"></span> Spectator screen <span class="tag">OPTIONAL</span></div>
+    <div class="spec-body">
 
-      <p class="join-line">Go to <b>your-game-link</b> and enter code</p>
-      <div class="code" id="tvCode">----</div>
-
-      <div class="count"><span class="dot"></span> <span id="tvCount">0 players</span></div>
-
-      <ul class="players" id="tvPlayers"></ul>
-      <div class="empty" id="tvEmpty">
-        <span class="big">👀</span>
-        Waiting for the first player to join…
+      <div id="specNone">
+        <div class="empty">
+          <span class="big">📺</span>
+          Open this on a computer or TV to watch the action.<br>
+          Create a room on your phone below to begin.
+        </div>
       </div>
 
-      <div class="start-row">
-        <button class="btn gold" id="startBtn" disabled>Start Game</button>
+      <div id="specRoom" style="display:none;">
+        <p class="spec-title">🏆 The standings</p>
+        <p class="spec-sub">Scores go live once a game starts.</p>
+
+        <p class="join-line">Join at <b>partygames.link</b> with code</p>
+        <div class="code" id="specCode">----</div>
+        <div class="linkchip" id="specLink" title="Copy the invite link">
+          <span class="ico">🔗</span> <span class="u" id="specLinkText">partygames.link/r/----</span>
+        </div>
+
+        <ul class="board" id="specBoard"></ul>
       </div>
+
     </div>
   </section>
 
-  <!-- ======================= THE PHONE ================================ -->
+  <!-- ========================= PHONE =================================== -->
   <section class="panel">
-    <div class="panel-label"><span class="dot"></span> On your phone</div>
+    <div class="panel-label"><span class="dot"></span> Your phone</div>
     <div class="phone-body">
 
-      <!-- JOIN FORM -->
-      <div id="joinView">
+      <!-- HOME MENU -->
+      <div id="v-home" class="menu">
+        <p class="lead">Everyone plays from their phone. Pick one:</p>
+        <button class="choice hero" data-go="create">
+          <span class="emoji">✨</span>
+          <span><span class="ct">Create a room</span><span class="cs">Start a party &amp; invite friends</span></span>
+        </button>
+        <button class="choice" data-go="join">
+          <span class="emoji">🎯</span>
+          <span><span class="ct">Join a room</span><span class="cs">Got a code or link? Hop in</span></span>
+        </button>
+        <button class="choice" data-go="spectate">
+          <span class="emoji">📺</span>
+          <span><span class="ct">Spectate</span><span class="cs">Turn a TV into the scoreboard</span></span>
+        </button>
+      </div>
+
+      <!-- CREATE -->
+      <div id="v-create" style="display:none;">
+        <div class="form-head"><button class="back" data-go="home">‹</button><h3>Create a room</h3></div>
+        <div class="field">
+          <label for="createName">Your name</label>
+          <input id="createName" type="text" autocomplete="off" maxlength="12" placeholder="Type a nickname">
+        </div>
+        <button class="btn gold" id="createBtn">✨ Create the party</button>
+        <p class="error" id="createError"></p>
+      </div>
+
+      <!-- JOIN -->
+      <div id="v-join" style="display:none;">
+        <div class="form-head"><button class="back" data-go="home">‹</button><h3>Join a room</h3></div>
         <div class="field">
           <label for="joinCode">Room code</label>
-          <input id="joinCode" type="text" inputmode="latin" autocomplete="off"
-                 maxlength="4" placeholder="ABCD">
+          <input id="joinCode" type="text" inputmode="latin" autocomplete="off" maxlength="4" placeholder="ABCD">
         </div>
         <div class="field">
           <label for="joinName">Your name</label>
-          <input id="joinName" type="text" autocomplete="off"
-                 maxlength="12" placeholder="Type a nickname">
+          <input id="joinName" type="text" autocomplete="off" maxlength="12" placeholder="Type a nickname">
         </div>
         <button class="btn" id="joinBtn">Join the party</button>
-        <p class="foot" id="joinError" style="color:var(--pink); min-height:16px; margin:8px 0 0;"></p>
+        <p class="error" id="joinError"></p>
       </div>
 
-      <!-- JOINED STATE -->
-      <div id="joinedView" style="display:none;">
+      <!-- SPECTATE (on this device) -->
+      <div id="v-spectate" style="display:none;">
+        <div class="form-head"><button class="back" data-go="home">‹</button><h3>Spectate</h3></div>
+        <div class="joined">
+          <div class="avatar" style="background:rgba(70,224,216,.18)">📺</div>
+          <div class="hi">Spectating</div>
+          <div class="status"><span class="pulse"></span>This device is now a scoreboard.</div>
+          <p class="share-note">The <b>Spectator screen</b> above shows the live room — that's what a TV would display. No playing from here.</p>
+          <button class="btn ghost" data-go="home">Done</button>
+        </div>
+      </div>
+
+      <!-- JOINED (playing) -->
+      <div id="v-joined" style="display:none;">
         <div class="joined">
           <div class="avatar" id="myAvatar"></div>
           <div class="hi">You're in, <span id="myName"></span>!</div>
-          <div class="status"><span class="pulse"></span>Waiting for the host to start…</div>
-          <button class="btn ghost" id="leaveBtn">Leave room</button>
+          <div id="hostBadge" class="hostcard" style="display:none;">👑 You're the host</div>
+          <div class="status"><span class="pulse"></span><span id="myStatus">Waiting for the host to start…</span></div>
+
+          <div id="hostShare">
+            <p class="share-note">Share <b id="shareCode">----</b> or the link so friends can join.</p>
+            <div class="btn-row">
+              <button class="btn grow" id="copyLinkBtn">🔗 Copy invite link</button>
+            </div>
+            <button class="btn gold" id="startBtn" style="margin-top:10px;">Start Game</button>
+          </div>
+
+          <button class="btn ghost" id="leaveBtn" style="margin-top:12px;">Leave room</button>
         </div>
       </div>
 
@@ -271,37 +340,43 @@
   <div class="hint">
     <span>🧪</span>
     <div>
-      <b>Testing on one screen.</b> Tap below to drop in pretend players and watch
-      the TV fill up. Real phone-to-TV joining switches on once we add the server.
+      <b>Testing on one screen.</b> Create a room, then tap below to drop in
+      pretend friends and watch the scoreboard fill up. Real phone-to-phone
+      joining switches on once we add the server.
     </div>
   </div>
-  <button class="btn ghost" id="addFakeBtn">+ Add a test player</button>
+  <button class="btn ghost" id="addFakeBtn" disabled>+ Add a test player</button>
 
-  <p class="foot">SHINDIG · working name — we'll swap in real games &amp; the live server next.</p>
+  <p class="foot">party games · early lobby — real games &amp; the live server come next.</p>
 </div>
+
+<div id="toast"></div>
 
 <script>
 /* =============================================================================
    Net — the FAKE SERVER (the "seam")
    -----------------------------------------------------------------------------
-   Every UI action goes through this object. Right now it keeps the room in
-   memory and instantly notifies subscribers. Later, the real Socket.IO server
-   will expose these SAME methods, and the UI below won't have to change:
+   No host computer: a PLAYER creates the room. A TV/computer can "spectate".
+   The real Socket.IO server will expose these SAME methods later, so the UI
+   below won't change:
 
-       Net.createRoom()              -> makes a room, returns its code
-       Net.joinRoom(code, {name})    -> adds a player, returns their id (or null)
-       Net.leaveRoom(playerId)       -> removes a player
-       Net.startGame()               -> flips the room to a "playing" phase
-       Net.subscribe(fn)             -> fn(room) runs on every change
+     Net.createRoom({name})      -> { code, id }   (you become the host player)
+     Net.joinRoom(code, {name})  -> { ok, id, error }
+     Net.leaveRoom(playerId)     -> host auto-passes to next player; empty = room ends
+     Net.startGame(playerId)     -> host only; flips room to 'playing'
+     Net.getRoom()               -> current room snapshot (or null)
+     Net.linkFor(code)           -> shareable invite link
+     Net.subscribe(fn)           -> fn(room|null) on every change
 
-   `room` shape (also the future server's shape):
-       { code, phase: 'lobby'|'playing', players: [ {id, name, avatar, color} ] }
+   room shape (also the future server's shape):
+     { code, phase:'lobby'|'playing', hostId, players:[ {id,name,avatar,color,score} ] }
    ========================================================================== */
 const Net = (() => {
   const AVATARS = ['🦊','🐸','🐼','🐧','🦄','🐙','🐝','🦁','🐰','🐢','🦖','🐳','🦉','🐨','🦩','🐲','🍄','🌮','🚀','👻','🤖','🎩'];
-  const COLORS  = ['#ff5d8f','#ffcf5c','#4dd6c8','#8b7dff','#ff9f6e','#6ec7ff','#c58bff','#7ee787'];
+  const COLORS  = ['#4f9dff','#46e0d8','#8b93ff','#ffc24d','#ff8fb0','#6ee7ff','#b39bff','#7ee7a8'];
+  const HOST    = 'partygames.link';
 
-  let room = { code: makeCode(), phase: 'lobby', players: [] };
+  let room = null;
   const subs = [];
   let seq = 0;
 
@@ -309,110 +384,163 @@ const Net = (() => {
     const L = 'ABCDEFGHJKLMNPQRSTUVWXYZ'; // no I/O to avoid confusion
     return Array.from({length:4}, () => L[Math.floor(Math.random()*L.length)]).join('');
   }
-  function emit(){ const snap = structuredClone(room); subs.forEach(fn => fn(snap)); }
+  function makePlayer(name){
+    const i = room ? room.players.length : 0;
+    return { id:'p'+(++seq), name:name.trim(), avatar:AVATARS[i%AVATARS.length], color:COLORS[i%COLORS.length], score:0 };
+  }
+  function emit(){ const snap = room ? structuredClone(room) : null; subs.forEach(fn => fn(snap)); }
 
   return {
-    createRoom(){ room = { code: makeCode(), phase:'lobby', players:[] }; emit(); return room.code; },
-    getCode(){ return room.code; },
+    createRoom({ name }){
+      const clean = (name||'').trim();
+      if(!clean) return { ok:false, error:'Please enter a name.' };
+      room = { code:makeCode(), phase:'lobby', hostId:null, players:[] };
+      const p = makePlayer(clean);
+      room.hostId = p.id; room.players.push(p);
+      emit();
+      return { ok:true, code:room.code, id:p.id };
+    },
     joinRoom(code, { name }){
-      if((code||'').toUpperCase() !== room.code) return { ok:false, error:'That room code does not match.' };
+      if(!room) return { ok:false, error:'No room yet — create one first.' };
+      if((code||'').toUpperCase() !== room.code) return { ok:false, error:'That code does not match a room.' };
       const clean = (name||'').trim();
       if(!clean) return { ok:false, error:'Please enter a name.' };
       if(room.players.length >= 25) return { ok:false, error:'This room is full (25).' };
-      const id = 'p' + (++seq);
-      const i  = room.players.length;
-      room.players.push({ id, name:clean, avatar:AVATARS[i % AVATARS.length], color:COLORS[i % COLORS.length] });
+      const p = makePlayer(clean); room.players.push(p);
       emit();
-      return { ok:true, id };
+      return { ok:true, id:p.id };
     },
-    leaveRoom(id){ room.players = room.players.filter(p => p.id !== id); emit(); },
-    startGame(){ if(room.players.length){ room.phase = 'playing'; emit(); } },
-    subscribe(fn){ subs.push(fn); fn(structuredClone(room)); }
+    leaveRoom(id){
+      if(!room) return;
+      const wasHost = room.hostId === id;
+      room.players = room.players.filter(p => p.id !== id);
+      if(room.players.length === 0){ room = null; }        // party's over
+      else if(wasHost){ room.hostId = room.players[0].id; } // pass the crown
+      emit();
+    },
+    startGame(id){
+      if(room && room.hostId === id && room.players.length){ room.phase = 'playing'; emit(); }
+    },
+    getRoom(){ return room ? structuredClone(room) : null; },
+    linkFor(code){ return HOST + '/r/' + (code || '----'); },
+    subscribe(fn){ subs.push(fn); fn(room ? structuredClone(room) : null); }
   };
 })();
 
 /* =============================================================================
-   UI wiring — talks only to Net. Nothing below knows it's a mock.
+   UI wiring — talks only to Net.
    ========================================================================== */
-const $ = sel => document.querySelector(sel);
-let myId = null;                 // the player THIS phone controls (if joined)
+const $ = s => document.querySelector(s);
+let myId = null;   // the player THIS phone controls (if playing)
 let fakeCount = 0;
 
-// ---- TV rendering -----------------------------------------------------------
-function renderTV(room){
-  $('#tvCode').textContent  = room.code;
-  $('#tvCount').textContent = room.players.length + (room.players.length === 1 ? ' player' : ' players');
-
-  const list = $('#tvPlayers');
-  const empty = $('#tvEmpty');
-  list.innerHTML = '';
-
-  if(room.players.length === 0){
-    empty.style.display = '';
-  } else {
-    empty.style.display = 'none';
-    for(const p of room.players){
-      const li = document.createElement('li');
-      li.className = 'player';
-      li.innerHTML =
-        '<span class="avatar" style="background:' + p.color + '33">' + p.avatar + '</span>' +
-        '<span class="name"></span>';
-      li.querySelector('.name').textContent = p.name;
-      list.appendChild(li);
-    }
-  }
-
-  const startBtn = $('#startBtn');
-  startBtn.disabled = room.players.length === 0;
-  startBtn.textContent = room.phase === 'playing'
-    ? 'Game running…'
-    : (room.players.length ? 'Start Game (' + room.players.length + ')' : 'Start Game');
+function toast(msg){
+  const t = $('#toast'); t.textContent = msg; t.classList.add('show');
+  clearTimeout(toast._t); toast._t = setTimeout(() => t.classList.remove('show'), 1600);
+}
+async function copy(text){
+  try{ await navigator.clipboard.writeText(text); toast('Link copied!'); }
+  catch{ toast(text); } // clipboard blocked in some previews — show it instead
 }
 
-// ---- phone view: swap between join form and joined state --------------------
+// ---- phone screen switching -------------------------------------------------
+const VIEWS = ['home','create','join','spectate','joined'];
+function show(view){
+  VIEWS.forEach(v => { const el = $('#v-'+v); if(el) el.style.display = (v===view ? '' : 'none'); });
+}
+document.querySelectorAll('[data-go]').forEach(el =>
+  el.addEventListener('click', () => {
+    const go = el.dataset.go;
+    if(go === 'create'){ show('create'); setTimeout(()=>$('#createName').focus(),50); }
+    else if(go === 'join'){ show('join'); setTimeout(()=>$('#joinCode').focus(),50); }
+    else if(go === 'spectate'){ show('spectate'); }
+    else show('home');
+  }));
+
+// ---- spectator screen render ------------------------------------------------
+function renderSpectator(room){
+  const none = $('#specNone'), box = $('#specRoom');
+  if(!room){ none.style.display=''; box.style.display='none'; return; }
+  none.style.display='none'; box.style.display='';
+
+  $('#specCode').textContent = room.code;
+  $('#specLinkText').textContent = Net.linkFor(room.code);
+
+  // standings, highest score first (all 0 in the lobby -> keep join order)
+  const ranked = [...room.players].sort((a,b) => b.score - a.score);
+  const board = $('#specBoard');
+  board.innerHTML = '';
+  ranked.forEach((p, i) => {
+    const li = document.createElement('li');
+    li.className = 'row';
+    li.innerHTML =
+      '<span class="rank">'+(i+1)+'</span>' +
+      '<span class="avatar" style="background:'+p.color+'33">'+p.avatar+'</span>' +
+      '<span class="who"><span class="name"></span>' +
+        '<span class="meta">'+(room.phase==='playing'?'playing':'ready to play')+'</span></span>' +
+      '<span class="score">'+p.score+'<small>PTS</small></span>';
+    const nm = li.querySelector('.name');
+    nm.textContent = p.name;
+    if(p.id === room.hostId){ const c=document.createElement('span'); c.className='crown'; c.textContent='👑'; nm.appendChild(c); }
+    board.appendChild(li);
+  });
+}
+
+// ---- phone render (only affects the joined view) ----------------------------
 function renderPhone(room){
-  const me = room.players.find(p => p.id === myId);
-  if(me){
-    $('#joinView').style.display = 'none';
-    $('#joinedView').style.display = '';
-    $('#myName').textContent = me.name;
-    const av = $('#myAvatar');
-    av.textContent = me.avatar;
-    av.style.background = me.color + '33';
-  } else {
-    myId = null;
-    $('#joinView').style.display = '';
-    $('#joinedView').style.display = 'none';
+  const me = room && room.players.find(p => p.id === myId);
+  if(!me){
+    if(myId){ myId = null; show('home'); }  // we were removed / room ended
+    return;
   }
+  show('joined');
+  $('#myName').textContent = me.name;
+  const av = $('#myAvatar'); av.textContent = me.avatar; av.style.background = me.color + '33';
+
+  const isHost = room.hostId === me.id;
+  $('#hostBadge').style.display = isHost ? '' : 'none';
+  $('#hostShare').style.display = isHost ? '' : 'none';
+  $('#shareCode').textContent = room.code;
+  $('#myStatus').textContent = room.phase === 'playing'
+    ? 'Game on!'
+    : (isHost ? 'Start when everyone is in.' : 'Waiting for the host to start…');
 }
 
-Net.subscribe(room => { renderTV(room); renderPhone(room); });
+// ---- test-player helper enable/disable --------------------------------------
+function renderHelper(room){
+  $('#addFakeBtn').disabled = !room;
+}
+
+Net.subscribe(room => { renderSpectator(room); renderPhone(room); renderHelper(room); });
 
 // ---- actions ----------------------------------------------------------------
-$('#joinBtn').addEventListener('click', () => {
-  const code = $('#joinCode').value.trim().toUpperCase();
-  const name = $('#joinName').value;
-  const res  = Net.joinRoom(code, { name });
-  if(res.ok){ myId = res.id; $('#joinError').textContent = ''; $('#joinName').value=''; }
-  else { $('#joinError').textContent = res.error; }
+$('#createBtn').addEventListener('click', () => {
+  const res = Net.createRoom({ name: $('#createName').value });
+  if(res.ok){ myId = res.id; $('#createError').textContent=''; }
+  else $('#createError').textContent = res.error;
 });
+$('#createName').addEventListener('keydown', e => { if(e.key==='Enter') $('#createBtn').click(); });
 
-// pressing Enter in either field submits
-['#joinCode','#joinName'].forEach(s =>
-  $(s).addEventListener('keydown', e => { if(e.key === 'Enter') $('#joinBtn').click(); }));
+$('#joinBtn').addEventListener('click', () => {
+  const res = Net.joinRoom($('#joinCode').value.trim().toUpperCase(), { name: $('#joinName').value });
+  if(res.ok){ myId = res.id; $('#joinError').textContent=''; }
+  else $('#joinError').textContent = res.error;
+});
+['#joinCode','#joinName'].forEach(s => $(s).addEventListener('keydown', e => { if(e.key==='Enter') $('#joinBtn').click(); }));
 
-$('#leaveBtn').addEventListener('click', () => { if(myId) Net.leaveRoom(myId); myId = null; });
+$('#leaveBtn').addEventListener('click', () => { if(myId) Net.leaveRoom(myId); myId=null; show('home'); });
+$('#startBtn').addEventListener('click', () => { if(myId) Net.startGame(myId); });
+$('#copyLinkBtn').addEventListener('click', () => { const r=Net.getRoom(); if(r) copy(Net.linkFor(r.code)); });
+$('#specLink').addEventListener('click', () => { const r=Net.getRoom(); if(r) copy(Net.linkFor(r.code)); });
 
-$('#startBtn').addEventListener('click', () => Net.startGame());
-
-// prefill the real code so testing is one tap
-$('#joinCode').value = Net.getCode();
-
-// ---- single-device helper: add pretend players -----------------------------
+// ---- single-device helper: add pretend players ------------------------------
 const FAKE_NAMES = ['Sam','Riley','Max','Nova','Kai','Jules','Bex','Theo','Wren','Ada','Milo','Zoe','Cleo','Finn','Iris','Otis'];
 $('#addFakeBtn').addEventListener('click', () => {
-  const name = FAKE_NAMES[fakeCount % FAKE_NAMES.length] + (fakeCount >= FAKE_NAMES.length ? ' ' + (Math.floor(fakeCount/FAKE_NAMES.length)+1) : '');
+  const r = Net.getRoom(); if(!r) return;
+  const name = FAKE_NAMES[fakeCount % FAKE_NAMES.length] + (fakeCount >= FAKE_NAMES.length ? ' '+(Math.floor(fakeCount/FAKE_NAMES.length)+1) : '');
   fakeCount++;
-  Net.joinRoom(Net.getCode(), { name });
+  Net.joinRoom(r.code, { name });
 });
+
+show('home');
 </script>
